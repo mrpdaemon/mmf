@@ -5,21 +5,33 @@ import subprocess, re
 class VidParser:
     """Video file parser class using mediainfo"""
     
-    def get_field_value(self, lineStr):
+    def get_field_value(self, line_str):
         splitter = re.compile(r'[:]+')
-        line_tokenized = splitter.split(lineStr)
+        line_tokenized = splitter.split(line_str)
         return line_tokenized[len(line_tokenized) - 1][1:]
-        
-    def __init__(self, inputFileName):
+    
+    def field_collapse_thousands(self, field_str):
+        result = []
+        splitter = re.compile(r'[ ]+')
+        field_str_tokenized = splitter.split(field_str)
+        if len(field_str_tokenized) == 3: # need to combine first 2
+            result.append(field_str_tokenized[0] + field_str_tokenized[1])
+            result.append(field_str_tokenized[2])
+        else:
+            result.append(field_str_tokenized[0])
+            result.append(field_str_tokenized[1])
+        return result
+                        
+    def __init__(self, input_file_name):
         INVALID_SECTION = 0
         VIDEO_SECTION = 1
         AUDIO_SECTION = 2
         TEXT_SECTION = 3
     
-        self.inputFileName = inputFileName
+        self.input_file_name = input_file_name
         current_section = INVALID_SECTION
         
-        mp = subprocess.Popen(['mediainfo', "".join(inputFileName)], stdout=subprocess.PIPE)
+        mp = subprocess.Popen(['mediainfo', "".join(input_file_name)], stdout=subprocess.PIPE)
         mp_output = mp.communicate()
         
         mp_tokenized = mp_output[0].split("\n")
@@ -42,20 +54,10 @@ class VidParser:
                     self.vid_scan = self.get_field_value(mp_line)
                 elif "Width " in mp_line:
                     vid_width_str = self.get_field_value(mp_line)
-                    splitter = re.compile(r'[ ]+')
-                    vid_width_str_tokenized = splitter.split(vid_width_str)
-                    if len(vid_width_str_tokenized) == 3: # need to combine first 2
-                        self.vid_width = vid_width_str_tokenized[0] + vid_width_str_tokenized[1]
-                    else:
-                        self.vid_width = vid_width_str_tokenized[0]
+                    self.vid_width = self.field_collapse_thousands(vid_width_str)[0]
                 elif "Height " in mp_line:
                     vid_height_str = self.get_field_value(mp_line)
-                    splitter = re.compile(r'[ ]+')
-                    vid_height_str_tokenized = splitter.split(vid_height_str)
-                    if len(vid_height_str_tokenized) == 3: # need to combine first 2
-                        self.vid_height = vid_height_str_tokenized[0] + vid_height_str_tokenized[1]
-                    else:
-                        self.vid_height = vid_height_str_tokenized[0]
+                    self.vid_height = self.field_collapse_thousands(vid_height_str)[0]
             elif current_section == AUDIO_SECTION:
                 if  "Format  " in mp_line:
                     self.audio_format = self.get_field_value(mp_line)
@@ -67,7 +69,7 @@ class VidParser:
                     continue
         
     def __repr__(self):
-        retStr = "\nInput file: "+ self.inputFileName + "\n\n"
+        retStr = "\nInput file: "+ self.input_file_name + "\n\n"
         retStr += "Video:\n"
         retStr += "\tStream ID: " + self.vid_stream_id + "\n"
         retStr += "\tFormat: " + self.vid_format + "\n"
