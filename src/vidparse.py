@@ -7,10 +7,13 @@ def get_field_value(line_str):
     line_tokenized = splitter.split(line_str)
     return line_tokenized[len(line_tokenized) - 1][1:]
 
+def tokenize_field(field_str):
+    splitter = re.compile(r'[ ]+')
+    return splitter.split(field_str)
+
 def field_collapse_thousands(field_str):
     result = []
-    splitter = re.compile(r'[ ]+')
-    field_str_tokenized = splitter.split(field_str)
+    field_str_tokenized = tokenize_field(field_str)
     if len(field_str_tokenized) == 3: # need to combine first 2
         result.append(field_str_tokenized[0] + field_str_tokenized[1])
         result.append(field_str_tokenized[2])
@@ -83,6 +86,12 @@ class VidParser:
                 elif "Bit rate  " in mp_line:
                     audio_bit_rate_str = get_field_value(mp_line)
                     self.audio_bitrate = int(bit_rate_convert(field_collapse_thousands(audio_bit_rate_str)))
+                elif "Sampling rate " in mp_line:
+                    audio_sample_rate_str = get_field_value(mp_line)
+                    self.audio_samplerate = int(float_to_str_trunc(float(tokenize_field(audio_sample_rate_str)[0])))
+                elif "Channel(s) " in mp_line:
+                    audio_channel_str = get_field_value(mp_line)
+                    self.audio_channels = int(tokenize_field(audio_channel_str)[0])
         
     def __repr__(self):
         retStr = "\nInput file: "+ self.input_file_name + "\n\n"
@@ -98,7 +107,9 @@ class VidParser:
         retStr += "\tStream ID: " + str(self.audio_stream_id) + "\n"
         retStr += "\tFormat: " + self.audio_format + "\n"
         retStr += "\tCodec ID: " + self.audio_codec_id + "\n"
+        retStr += "\tChannel count: " + str(self.audio_channels) + "\n"
         retStr += "\tBit rate: " + str(self.audio_bitrate) + "\n"
+        retStr += "\tSample rate: " + str(self.audio_samplerate) + "\n"
         return retStr
 
 if __name__ == "__main__":
