@@ -74,6 +74,9 @@ class VidParser:
                 elif mp_line.startswith("Bit rate  "):
                     vid_bit_rate_str = get_field_value(mp_line)
                     self.vid_bitrate = int(bit_rate_convert(field_collapse_thousands(vid_bit_rate_str)))
+                elif mp_line.startswith("Frame rate  "):
+                    vid_fps_str = get_field_value(mp_line)
+                    self.vid_fps = float(tokenize_field(vid_fps_str)[0])
             elif current_section == AUDIO_SECTION:
                 if mp_line.startswith("Format  "):
                     self.audio_format = get_field_value(mp_line)
@@ -101,6 +104,7 @@ class VidParser:
         retStr += "\tWidth: " + str(self.vid_width) + "\n"
         retStr += "\tHeight: " + str(self.vid_height) + "\n"
         retStr += "\tBit rate: " + str(self.vid_bitrate) + "\n"
+        retStr += "\tFPS: " + str(self.vid_fps) + "\n"
         retStr += "Audio:\n"
         retStr += "\tStream ID: " + str(self.audio_stream_id) + "\n"
         retStr += "\tFormat: " + self.audio_format + "\n"
