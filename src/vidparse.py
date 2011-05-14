@@ -2,7 +2,7 @@
 
 import subprocess, re
 
-class Parser:
+class VidParser:
     """Video file parser class using mediainfo"""
     def __init__(self, inputFileName):
         self.inputFileName = inputFileName
@@ -63,5 +63,5 @@ class Parser:
 
 if __name__ == "__main__":
     import sys
-    testParser = Parser(sys.argv[1])
+    testParser = VidParser(sys.argv[1])
     print testParser

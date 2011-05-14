@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys,subprocess,optparse,parser
+import sys,subprocess,optparse,vidparse
 
 optparser = optparse.OptionParser()
 optparser.add_option("-d","--debug",type="int", dest="debug_level",help="Enable debug logging")
@@ -16,7 +16,7 @@ if len(extra_args) == 0:
 
 DECISION_LOG = options.debug_level
 
-myParser = parser.Parser(extra_args[0:])
+vidInfo = vidparse.VidParser(extra_args[0:])
 
 # Decision steps
 vdpau_codec=""
@@ -26,7 +26,7 @@ sw_opts=""
 interlaced=False
 
 # Deinterlace for non-progressive videos
-if (myParser.vid_scan == "Interlaced") or (myParser.vid_scan == "MBAFF"):
+if (vidInfo.vid_scan == "Interlaced") or (vidInfo.vid_scan == "MBAFF"):
     vdpau_opts = vdpau_opts + ":deint=4"
     sw_opts = sw_opts + "-vf pp=yadif:1"
     interlaced = True
@@ -35,24 +35,24 @@ else:
 
 native_res=False
 # HQ scaling only if video isn't in native resolution
-if (myParser.vid_width != "1920") and (myParser.vid_height != "1080"):
+if (vidInfo.vid_width != "1920") and (vidInfo.vid_height != "1080"):
     vdpau_opts = vdpau_opts + ":hqscaling=1"
     native_res = False
 else:
     native_res = True
 
 # Codec selection
-if (myParser.vid_codec_id == "avc1") or (myParser.vid_codec_id == "V_MPEG4/ISO/AVC"):
+if (vidInfo.vid_codec_id == "avc1") or (vidInfo.vid_codec_id == "V_MPEG4/ISO/AVC"):
         vdpau_codec = "-vc ffh264vdpau"
-elif (myParser.vid_codec_id == "WMV3"):
+elif (vidInfo.vid_codec_id == "WMV3"):
         vdpau_codec = "-vc ffwmv3vdpau"
-elif (myParser.vid_codec_id == "DX40") or (myParser.vid_codec_id == "DIVX"):
+elif (vidInfo.vid_codec_id == "DX40") or (vidInfo.vid_codec_id == "DIVX"):
         vdpau_codec = "-vc ffodivxvdpau"
-elif (myParser.vid_format == "AVC"): # Canon Vixia doesn't put Codec ID
+elif (vidInfo.vid_format == "AVC"): # Canon Vixia doesn't put Codec ID
         vdpau_codec = "-vc ffh264vdpau"
-elif (myParser.vid_format == "MPEG Video"):
+elif (vidInfo.vid_format == "MPEG Video"):
         vdpau_codec = "-vc ffmpeg12vdpau"
-elif (myParser.vid_format == "VC-1"):
+elif (vidInfo.vid_format == "VC-1"):
         vdpau_codec = "-vc ffvc1vdpau"
 
 if DECISION_LOG >= 1:
