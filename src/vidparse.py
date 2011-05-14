@@ -21,7 +21,15 @@ class VidParser:
             result.append(field_str_tokenized[0])
             result.append(field_str_tokenized[1])
         return result
-                        
+    
+    def bit_rate_convert(self, bit_rate_tokenized):
+        if bit_rate_tokenized[1] == "Kbps":
+            return str(round(float(bit_rate_tokenized[0])))[:-2]
+        elif bit_rate_tokenized[1] == "Mbps":
+            return str(round(float(bit_rate_tokenized[0]) * 1024, 0))[:-2]
+        else:
+            raise Exception("Unknown bit rate string")
+                 
     def __init__(self, input_file_name):
         INVALID_SECTION = 0
         VIDEO_SECTION = 1
@@ -49,38 +57,45 @@ class VidParser:
                     self.vid_codec_id = self.get_field_value(mp_line)
                 elif  "ID  " in mp_line:
                     # Codec ID check needs to be above stream ID check
-                    self.vid_stream_id = self.get_field_value(mp_line)
+                    self.vid_stream_id = int(self.get_field_value(mp_line))
                 elif "Scan type " in mp_line:
                     self.vid_scan = self.get_field_value(mp_line)
                 elif "Width " in mp_line:
                     vid_width_str = self.get_field_value(mp_line)
-                    self.vid_width = self.field_collapse_thousands(vid_width_str)[0]
+                    self.vid_width = int(self.field_collapse_thousands(vid_width_str)[0])
                 elif "Height " in mp_line:
                     vid_height_str = self.get_field_value(mp_line)
-                    self.vid_height = self.field_collapse_thousands(vid_height_str)[0]
+                    self.vid_height = int(self.field_collapse_thousands(vid_height_str)[0])
+                elif "Bit rate  " in mp_line:
+                    vid_bit_rate_str = self.get_field_value(mp_line)
+                    self.vid_bitrate = int(self.bit_rate_convert(self.field_collapse_thousands(vid_bit_rate_str)))
             elif current_section == AUDIO_SECTION:
                 if  "Format  " in mp_line:
                     self.audio_format = self.get_field_value(mp_line)
-                if  "Codec ID " in mp_line:
+                elif  "Codec ID " in mp_line:
                     self.audio_codec_id = self.get_field_value(mp_line)
                 elif  "ID  " in mp_line:
                     # Codec ID check needs to be above stream ID check
-                    self.audio_stream_id = self.get_field_value(mp_line)
-                    continue
+                    self.audio_stream_id = int(self.get_field_value(mp_line))
+                elif "Bit rate  " in mp_line:
+                    audio_bit_rate_str = self.get_field_value(mp_line)
+                    self.audio_bitrate = int(self.bit_rate_convert(self.field_collapse_thousands(audio_bit_rate_str)))
         
     def __repr__(self):
         retStr = "\nInput file: "+ self.input_file_name + "\n\n"
         retStr += "Video:\n"
-        retStr += "\tStream ID: " + self.vid_stream_id + "\n"
+        retStr += "\tStream ID: " + str(self.vid_stream_id) + "\n"
         retStr += "\tFormat: " + self.vid_format + "\n"
         retStr += "\tCodec ID: "+ self.vid_codec_id + "\n"
         retStr += "\tScan type: " + self.vid_scan + "\n"
-        retStr += "\tWidth: " + self.vid_width + "\n"
-        retStr += "\tHeight: " + self.vid_height + "\n"
+        retStr += "\tWidth: " + str(self.vid_width) + "\n"
+        retStr += "\tHeight: " + str(self.vid_height) + "\n"
+        retStr += "\tBit rate: " + str(self.vid_bitrate) + "\n"
         retStr += "Audio:\n"
-        retStr += "\tStream ID: " + self.audio_stream_id + "\n"
+        retStr += "\tStream ID: " + str(self.audio_stream_id) + "\n"
         retStr += "\tFormat: " + self.audio_format + "\n"
         retStr += "\tCodec ID: " + self.audio_codec_id + "\n"
+        retStr += "\tBit rate: " + str(self.audio_bitrate) + "\n"
         return retStr
 
 if __name__ == "__main__":
