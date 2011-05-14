@@ -36,6 +36,26 @@ def bit_rate_convert(bit_rate_tokenized):
 class VidParser:
     """Video file parser class using mediainfo"""
     
+    input_file_name = ""
+    
+    # Video parameters
+    vid_stream_id = -1
+    vid_format = ""
+    vid_codec_id = ""
+    vid_scan = ""
+    vid_width = 0
+    vid_height = 0
+    vid_bitrate = 0
+    vid_fps = 0.0
+    
+    # Audio parameters
+    audio_stream_id = -1
+    audio_format = ""
+    audio_codec_id = ""
+    audio_channels = 0
+    audio_bitrate = 0
+    audio_samplerate = 0
+
     def __init__(self, input_file_name):
         INVALID_SECTION = 0
         VIDEO_SECTION = 1
