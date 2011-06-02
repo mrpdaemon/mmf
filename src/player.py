@@ -35,7 +35,7 @@ else:
 
 native_res=False
 # HQ scaling only if video isn't in native resolution
-if (vidInfo.vid_width != "1920") and (vidInfo.vid_height != "1080"):
+if (vidInfo.vid_width != 1920) and (vidInfo.vid_height != 1080):
     vdpau_opts = vdpau_opts + ":hqscaling=1"
     native_res = False
 else:
