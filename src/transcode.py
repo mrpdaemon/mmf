@@ -64,6 +64,14 @@ else:
 
 vid_bitrate_str = str(bit_rate * 1000)
 
+# Stream mapping calculation
+if (vid_info.audio_stream_id > vid_info.vid_stream_id):
+    map_vid_str = "-map 0:0"
+    map_audio_str = "-map 1:0"
+else:
+    map_vid_str = "-map 0.1:0.1"
+    map_audio_str = "-map 1.0:1"
+
 # Video first pass
 #TODO: Do this stuff in a tempdir so x264 logfiles don't clash between multiple invocations
 ffmpeg_cmdline = "ffmpeg -y -an -i " + input_file + " " + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + " -b " + vid_bitrate_str + " -f rawvideo /dev/null"
@@ -72,7 +80,7 @@ ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
 ffmpeg.wait()
 
 # Video second pass + muxer step
-ffmpeg_cmdline = "ffmpeg -y -map 0:0 -i " + input_file + " -map 1:0 -i output-audio.aac " + vid_size_str + " -pass 2 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + " -b " + vid_bitrate_str + " -acodec copy " + options.output_file
+ffmpeg_cmdline = "ffmpeg -y " + map_vid_str + " -i " + input_file + " " + map_audio_str + " -i output-audio.aac " + vid_size_str + " -pass 2 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + " -b " + vid_bitrate_str + " -acodec copy " + options.output_file
 print ffmpeg_cmdline
 ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
 ffmpeg.wait()
