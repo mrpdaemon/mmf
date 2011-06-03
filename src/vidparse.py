@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import subprocess, re
+import subprocess, re, os.path
 
 VIDEO_CODEC_H264 = "H.264"
 VIDEO_CODEC_WMV3 = "WMV3"
@@ -69,6 +69,9 @@ class VidParser:
         AUDIO_SECTION = 2
         TEXT_SECTION = 3
     
+        if not os.path.isfile(input_file_name):
+            raise Exception("Input file '" + input_file_name + "' not found.");
+            
         self.input_file_name = input_file_name
         current_section = INVALID_SECTION
         

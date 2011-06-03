@@ -16,7 +16,7 @@ if len(extra_args) == 0:
 
 DECISION_LOG = options.debug_level
 
-vidInfo = vidparse.VidParser(extra_args[0:])
+vidInfo = vidparse.VidParser(extra_args[0])
 
 # Decision steps
 vdpau_codec=""
