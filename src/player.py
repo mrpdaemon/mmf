@@ -23,36 +23,26 @@ vdpau_codec=""
 #vdpau_opts=":sharpen=0.4:denoise=0.4"
 vdpau_opts=""
 sw_opts=""
-interlaced=False
 
 # Deinterlace for non-progressive videos
-if (vidInfo.vid_scan == "Interlaced") or (vidInfo.vid_scan == "MBAFF"):
+if (vidInfo.vid_interlaced == True):
     vdpau_opts = vdpau_opts + ":deint=4"
     sw_opts = sw_opts + "-vf pp=yadif:1"
-    interlaced = True
-else:
-    interlaced = False
 
-native_res=False
 # HQ scaling only if video isn't in native resolution
 if (vidInfo.vid_width != 1920) and (vidInfo.vid_height != 1080):
     vdpau_opts = vdpau_opts + ":hqscaling=1"
-    native_res = False
-else:
-    native_res = True
 
 # Codec selection
-if (vidInfo.vid_codec_id == "avc1") or (vidInfo.vid_codec_id == "V_MPEG4/ISO/AVC"):
+if (vidInfo.vid_codec == vidparse.VIDEO_CODEC_H264):
         vdpau_codec = "-vc ffh264vdpau"
-elif (vidInfo.vid_codec_id == "WMV3"):
+elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_WMV3):
         vdpau_codec = "-vc ffwmv3vdpau"
-elif (vidInfo.vid_codec_id == "DX40") or (vidInfo.vid_codec_id == "DIVX"):
+elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_DIVX):
         vdpau_codec = "-vc ffodivxvdpau"
-elif (vidInfo.vid_format == "AVC"): # Canon Vixia doesn't put Codec ID
-        vdpau_codec = "-vc ffh264vdpau"
-elif (vidInfo.vid_format == "MPEG Video"):
+elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_MPEG12):
         vdpau_codec = "-vc ffmpeg12vdpau"
-elif (vidInfo.vid_format == "VC-1"):
+elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_VC1):
         vdpau_codec = "-vc ffvc1vdpau"
 
 if DECISION_LOG >= 1:

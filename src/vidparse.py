@@ -2,6 +2,12 @@
 
 import subprocess, re
 
+VIDEO_CODEC_H264 = "H.264"
+VIDEO_CODEC_WMV3 = "WMV3"
+VIDEO_CODEC_DIVX = "DIVX"
+VIDEO_CODEC_MPEG12 = "MPEG 1/2"
+VIDEO_CODEC_VC1 = "VC-1"
+
 def get_field_value(line_str):
     splitter = re.compile(r'[:]+')
     line_tokenized = splitter.split(line_str)
@@ -40,9 +46,10 @@ class VidParser:
     
     # Video parameters
     vid_stream_id = -1
-    vid_format = ""
-    vid_codec_id = ""
-    vid_scan = ""
+    _vid_codec_id = ""
+    _vid_format = ""
+    vid_codec = ""
+    vid_interlaced = False
     vid_width = 0
     vid_height = 0
     vid_bitrate = 0
@@ -78,13 +85,15 @@ class VidParser:
                 current_section = TEXT_SECTION
             elif current_section == VIDEO_SECTION:
                 if mp_line.startswith("Format  "):
-                    self.vid_format = get_field_value(mp_line)
+                    self._vid_format = get_field_value(mp_line)
                 elif mp_line.startswith("Codec ID "):
-                    self.vid_codec_id = get_field_value(mp_line)
+                    self._vid_codec_id = get_field_value(mp_line)
                 elif  mp_line.startswith("ID "):
                     self.vid_stream_id = int(tokenize_field(get_field_value(mp_line))[0])
                 elif mp_line.startswith("Scan type "):
-                    self.vid_scan = get_field_value(mp_line)
+                    vid_scan = get_field_value(mp_line)
+                    if (vid_scan == "Interlaced") or (vid_scan == "MBAFF"):
+                        self.vid_interlaced = True
                 elif mp_line.startswith("Width "):
                     vid_width_str = get_field_value(mp_line)
                     self.vid_width = int(field_collapse_thousands(vid_width_str)[0])
@@ -113,14 +122,24 @@ class VidParser:
                 elif mp_line.startswith("Channel(s) "):
                     audio_channel_str = get_field_value(mp_line)
                     self.audio_channels = int(tokenize_field(audio_channel_str)[0])
-        
+
+        if (self._vid_codec_id == "avc1") or (self._vid_codec_id == "V_MPEG4/ISO/AVC") or (self._vid_format == "AVC"):
+            self.vid_codec = VIDEO_CODEC_H264
+        elif (self._vid_codec_id == "WMV3"):
+            self.vid_codec = VIDEO_CODEC_WMV3
+        elif (self._vid_codec_id == "DX40") or (self._vid_codec_id == "DIVX"):
+            self.vid_codec = VIDEO_CODEC_DIVX
+        elif (self._vid_format == "MPEG Video"):
+            self.vid_codec = VIDEO_CODEC_MPEG12
+        elif (self._vid_format == "VC-1"):
+            self.vid_codec = VIDEO_CODEC_VC1
+
     def __repr__(self):
         retStr = "\nInput file: "+ self.input_file_name + "\n\n"
         retStr += "Video:\n"
         retStr += "\tStream ID: " + str(self.vid_stream_id) + "\n"
-        retStr += "\tFormat: " + self.vid_format + "\n"
-        retStr += "\tCodec ID: "+ self.vid_codec_id + "\n"
-        retStr += "\tScan type: " + self.vid_scan + "\n"
+        retStr += "\tCodec: "+ self.vid_codec + "\n"
+        retStr += "\tInterlaced: " + str(self.vid_interlaced) + "\n"
         retStr += "\tWidth: " + str(self.vid_width) + "\n"
         retStr += "\tHeight: " + str(self.vid_height) + "\n"
         retStr += "\tBit rate: " + str(self.vid_bitrate) + "\n"
