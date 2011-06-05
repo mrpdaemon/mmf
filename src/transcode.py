@@ -102,7 +102,12 @@ if audio_bitrate < target_config.audio_max_bitrate:
         prev_rate = rate
 audio_bitrate = audio_bitrate * 1000
 
-neroaac_cmdline = ("/opt/neroaac/1.5.1/neroAacEnc -cbr " + str(audio_bitrate) +
+try:
+    neroaac_dir = os.environ['NEROAAC_DIR']
+except:
+    neroaac_dir = ""
+neroaac_path = os.path.join(neroaac_dir, "neroAacEnc")
+neroaac_cmdline = (neroaac_path + " -cbr " + str(audio_bitrate) +
                    " -lc -ignorelength -if - -of output-audio.aac")
 print neroaac_cmdline
 neroaac_args = shlex.split(neroaac_cmdline)

@@ -12,7 +12,6 @@ transcode.py is an ffmpeg frontend that can transcode the an input video into a 
 TODO
 ---------
 * Look into using ffmpeg for audio encode also.
-* Use proper path for neroaac and have a NEROAAC_PATH environment variable
 * Proper build/install support
 * Support for running transcode.py in Windows
 * Multiple input file support.
