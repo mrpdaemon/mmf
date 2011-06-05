@@ -63,7 +63,18 @@ ffmpeg_cmdline = "ffmpeg -v 0 -y" + offset_str + length_str + " -i " + input_fil
 print ffmpeg_cmdline
 ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True, stdout = subprocess.PIPE)
 
-audio_bitrate = min(vid_info.audio_bitrate, target_config.audio_max_bitrate) * 1000
+audio_bitrate = min(vid_info.audio_bitrate, target_config.audio_max_bitrate)
+if audio_bitrate < target_config.audio_max_bitrate:
+    # Round up bitrate to a standard step unless it is > 320 in which case just keep it
+    audio_bitrate_steps = [320,256,192,160,128,112,96,64,0]
+    prev_rate = audio_bitrate
+    for rate in audio_bitrate_steps:
+        if audio_bitrate > rate:
+            audio_bitrate = prev_rate
+            break
+        prev_rate = rate
+audio_bitrate = audio_bitrate * 1000
+
 neroaac_cmdline = "/opt/neroaac/1.5.1/neroAacEnc -cbr " + str(audio_bitrate) + " -lc -ignorelength -if - -of output-audio.aac"
 print neroaac_cmdline
 neroaac = subprocess.Popen(neroaac_cmdline, shell = True, stdin = ffmpeg.stdout)
