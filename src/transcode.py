@@ -8,6 +8,7 @@ optparser.add_option("-t","--target",action="store", type="string", dest="target
 optparser.add_option("-l","--length",type="int", dest="duration",help="Number of seconds to encode (defaults to whole file)")
 optparser.add_option("-s","--offset",type="int", dest="start_offset",help="Offset in seconds from the beginning of the input file to skip")
 optparser.add_option("-2","--double-pass", action = "store_true", dest="double_pass", help="Use double-pass encoding for better compression efficiency")
+optparser.add_option("-p","--preset",action="store", type="string", dest="ffmpeg_preset",help="FFMpeg preset to use for encoding")
 (options, extra_args) = optparser.parse_args()
 
 if (options.output_file == None):
@@ -26,6 +27,9 @@ else:
 
 if (not options.double_pass):
     options.double_pass = False
+
+if (not options.ffmpeg_preset):
+    options.ffmpeg_preset = ""
 
 try:
     vid_info = vidparse.VidParser(input_file)
@@ -92,9 +96,14 @@ else:
     map_vid_str = " -map 0.1:0.1"
     map_audio_str = " -map 1.0:1"
 
+if options.ffmpeg_preset != "":
+    preset_str = " -preset " + options.ffmpeg_preset
+else:
+    preset_str = ""
+
 if options.double_pass == True:
     # Video first pass
-    ffmpeg_cmdline = "ffmpeg -y -an" + offset_str + length_str + " -i " + input_file + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + vid_bitrate_str + " -f rawvideo /dev/null"
+    ffmpeg_cmdline = "ffmpeg -y -an" + offset_str + length_str + " -i " + input_file + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + preset_str + " -profile " + h264_profile_str + vid_bitrate_str + " -f rawvideo /dev/null"
     print ffmpeg_cmdline
     ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
     ffmpeg.wait()
@@ -103,7 +112,7 @@ else:
     pass_str = ""
 
 # Video second (or first) pass + muxer step
-ffmpeg_cmdline = "ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " + input_file + map_audio_str + " -i output-audio.aac" + vid_size_str + pass_str + " -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + vid_bitrate_str + " -acodec copy " + options.output_file
+ffmpeg_cmdline = "ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " + input_file + map_audio_str + " -i output-audio.aac" + vid_size_str + pass_str + " -vcodec libx264 -threads 0 -level " + h264_level_str + preset_str +" -profile " + h264_profile_str + vid_bitrate_str + " -acodec copy " + options.output_file
 print ffmpeg_cmdline
 ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
 ffmpeg.wait()
