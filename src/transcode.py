@@ -7,6 +7,7 @@ optparser.add_option("-o","--output",action="store", type="string", dest="output
 optparser.add_option("-t","--target",action="store", type="string", dest="target_string",help="Target device name")
 optparser.add_option("-l","--length",type="int", dest="duration",help="Number of seconds to encode (defaults to whole file)")
 optparser.add_option("-s","--offset",type="int", dest="start_offset",help="Offset in seconds from the beginning of the input file to skip")
+optparser.add_option("-2","--double-pass", action = "store_true", dest="double_pass", help="Use double-pass encoding for better compression efficiency")
 (options, extra_args) = optparser.parse_args()
 
 if (options.output_file == None):
@@ -22,6 +23,9 @@ if len(extra_args) == 0:
     sys.exit()
 else:
     input_file = extra_args[0]
+
+if (not options.double_pass):
+    options.double_pass = False
 
 try:
     vid_info = vidparse.VidParser(input_file)
@@ -88,20 +92,25 @@ else:
     map_vid_str = " -map 0.1:0.1"
     map_audio_str = " -map 1.0:1"
 
-# Video first pass
-ffmpeg_cmdline = "ffmpeg -y -an" + offset_str + length_str + " -i " + input_file + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + vid_bitrate_str + " -f rawvideo /dev/null"
-print ffmpeg_cmdline
-ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
-ffmpeg.wait()
+if options.double_pass == True:
+    # Video first pass
+    ffmpeg_cmdline = "ffmpeg -y -an" + offset_str + length_str + " -i " + input_file + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + vid_bitrate_str + " -f rawvideo /dev/null"
+    print ffmpeg_cmdline
+    ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
+    ffmpeg.wait()
+    pass_str = " -pass 2"
+else:
+    pass_str = ""
 
-# Video second pass + muxer step
-ffmpeg_cmdline = "ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " + input_file + map_audio_str + " -i output-audio.aac" + vid_size_str + " -pass 2 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + vid_bitrate_str + " -acodec copy " + options.output_file
+# Video second (or first) pass + muxer step
+ffmpeg_cmdline = "ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " + input_file + map_audio_str + " -i output-audio.aac" + vid_size_str + pass_str + " -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + vid_bitrate_str + " -acodec copy " + options.output_file
 print ffmpeg_cmdline
 ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
 ffmpeg.wait()
 
 # Clean up intermediate files
 os.remove(os.path.join(temp_dir, "output-audio.aac"))
-os.remove(os.path.join(temp_dir, "x264_2pass.log.mbtree"))
-os.remove(os.path.join(temp_dir, "x264_2pass.log"))
+if options.double_pass == True:
+    os.remove(os.path.join(temp_dir, "x264_2pass.log.mbtree"))
+    os.remove(os.path.join(temp_dir, "x264_2pass.log"))
 os.rmdir(temp_dir)
