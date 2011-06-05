@@ -31,11 +31,11 @@ optparser.add_option("-p","--preset",action="store", type="string",
                      help="FFMpeg preset to use for encoding")
 (options, extra_args) = optparser.parse_args()
 
-if (options.output_file == None):
+if options.output_file == None:
     print "No output file specified, exiting."
     sys.exit()
 
-if (options.target_string == None):
+if options.target_string == None:
     print "No target specified, exiting."
     sys.exit()
 
@@ -45,10 +45,10 @@ if len(extra_args) == 0:
 else:
     input_file = extra_args[0]
 
-if (not options.double_pass):
+if not options.double_pass:
     options.double_pass = False
 
-if (not options.ffmpeg_preset):
+if not options.ffmpeg_preset:
     options.ffmpeg_preset = ""
 
 try:
@@ -68,12 +68,12 @@ print "Working directory: " + temp_dir
 os.chdir(temp_dir)
 
 # Prepare duration strings
-if (not options.duration):
+if not options.duration:
     length_str = ""
 else:
     length_str = " -t " + str(options.duration)
 
-if (not options.start_offset):
+if not options.start_offset:
     offset_str = ""
 else:
     offset_str = " -ss " + str(options.start_offset)
@@ -114,8 +114,8 @@ neroaac.wait()
 h264_level_str = target_config.codec_h264_level.replace('.', '')
 h264_profile_str = target_config.codec_h264_profile.lower()
 
-if ((vid_info.vid_width > target_config.video_max_width) or 
-    (vid_info.vid_height > target_config.video_max_height)):
+if (vid_info.vid_width > target_config.video_max_width or 
+    vid_info.vid_height > target_config.video_max_height):
     vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
                     str(target_config.video_max_height)) #TODO: Fix aspect ratio
     bit_rate = target_config.video_max_bitrate
@@ -130,7 +130,7 @@ else:
 vid_bitrate_str = " -b " + str(bit_rate * 1000)
 
 # Stream mapping calculation
-if (vid_info.audio_stream_id > vid_info.vid_stream_id):
+if vid_info.audio_stream_id > vid_info.vid_stream_id:
     map_vid_str = " -map 0:0"
     map_audio_str = " -map 1:0"
 else:

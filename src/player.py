@@ -25,10 +25,10 @@ optparser.add_option("-2","--use-mplayer2", action = "store_true",
                      help="Use mplayer2 instead of mplayer")
 (options, extra_args) = optparser.parse_args()
 
-if (not options.mplayer_opts):
+if not options.mplayer_opts:
     options.mplayer_opts = ""
 
-if (not options.use_mplayer2):
+if not options.use_mplayer2:
     options.use_mplayer2 = False
 
 if len(extra_args) == 0:
@@ -46,24 +46,24 @@ vdpau_opts=""
 sw_opts=""
 
 # Deinterlace for non-progressive videos
-if (vidInfo.vid_interlaced == True):
+if vidInfo.vid_interlaced == True:
     vdpau_opts = vdpau_opts + ":deint=4"
     sw_opts = sw_opts + "-vf pp=yadif:1"
 
 # HQ scaling only if video isn't in native resolution
-if (vidInfo.vid_width != 1920) and (vidInfo.vid_height != 1080):
+if vidInfo.vid_width != 1920 and vidInfo.vid_height != 1080:
     vdpau_opts = vdpau_opts + ":hqscaling=1"
 
 # Codec selection
-if (vidInfo.vid_codec == vidparse.VIDEO_CODEC_H264):
+if vidInfo.vid_codec == vidparse.VIDEO_CODEC_H264:
         vdpau_codec = "-vc ffh264vdpau"
-elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_WMV3):
+elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_WMV3:
         vdpau_codec = "-vc ffwmv3vdpau"
-elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_DIVX):
+elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_DIVX:
         vdpau_codec = "-vc ffodivxvdpau"
-elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_MPEG12):
+elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_MPEG12:
         vdpau_codec = "-vc ffmpeg12vdpau"
-elif (vidInfo.vid_codec == vidparse.VIDEO_CODEC_VC1):
+elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_VC1:
         vdpau_codec = "-vc ffvc1vdpau"
 
 if DECISION_LOG >= 1:

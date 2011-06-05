@@ -95,9 +95,9 @@ class VidParser:
         for mp_line in mp_tokenized:
             if mp_line == "Video":
                 current_section = VIDEO_SECTION
-            elif (mp_line == "Audio") or (mp_line == "Audio #1"):
+            elif mp_line == "Audio" or mp_line == "Audio #1":
                 current_section = AUDIO_SECTION
-            elif (mp_line == "Text"):
+            elif mp_line == "Text":
                 current_section = TEXT_SECTION
             elif current_section == VIDEO_SECTION:
                 if mp_line.startswith("Format  "):
@@ -139,17 +139,17 @@ class VidParser:
                     audio_channel_str = get_field_value(mp_line)
                     self.audio_channels = int(tokenize_field(audio_channel_str)[0])
 
-        if ((self._vid_codec_id == "avc1") or
-            (self._vid_codec_id == "V_MPEG4/ISO/AVC") or
-            (self._vid_format == "AVC")):
+        if (self._vid_codec_id == "avc1" or
+            self._vid_codec_id == "V_MPEG4/ISO/AVC" or
+            self._vid_format == "AVC"):
             self.vid_codec = VIDEO_CODEC_H264
-        elif (self._vid_codec_id == "WMV3"):
+        elif self._vid_codec_id == "WMV3":
             self.vid_codec = VIDEO_CODEC_WMV3
-        elif (self._vid_codec_id == "DX40") or (self._vid_codec_id == "DIVX"):
+        elif self._vid_codec_id == "DX40" or self._vid_codec_id == "DIVX":
             self.vid_codec = VIDEO_CODEC_DIVX
-        elif (self._vid_format == "MPEG Video"):
+        elif self._vid_format == "MPEG Video":
             self.vid_codec = VIDEO_CODEC_MPEG12
-        elif (self._vid_format == "VC-1"):
+        elif self._vid_format == "VC-1":
             self.vid_codec = VIDEO_CODEC_VC1
 
     def __repr__(self):
