@@ -114,19 +114,52 @@ neroaac.wait()
 h264_level_str = target_config.codec_h264_level.replace('.', '')
 h264_profile_str = target_config.codec_h264_profile.lower()
 
-if (vid_info.vid_width > target_config.video_max_width or 
-    vid_info.vid_height > target_config.video_max_height):
-    vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
-                    str(target_config.video_max_height)) #TODO: Fix aspect ratio
-    bit_rate = target_config.video_max_bitrate
-else:
-    vid_size_str = ""
-    # Adjust bitrate fractionally based on max bitrate
-    bit_rate = (int(target_config.video_max_bitrate * 
-                    (float(vid_info.vid_width * vid_info.vid_height) /
-                     float(target_config.video_max_width *
-                           target_config.video_max_height))))
+def calc_scaled_bitrate(target_config, scaled_width, scaled_height):
+    return (int(target_config.video_max_bitrate * 
+            float(scaled_width * scaled_height) /
+            float(target_config.video_max_width * 
+                  target_config.video_max_height)))
 
+if vid_info.vid_width > target_config.video_max_width:
+    # Scale down width and see if height is within maximum allowed
+    scale_factor = float(target_config.video_max_width) / vid_info.vid_width
+    scaled_height = int(float(vid_info.vid_height) * scale_factor)
+    if scaled_height % 2 == 1: # make sure scaled height divisible by 2
+        scaled_height += 1
+    if scaled_height < target_config.video_max_height:
+        vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
+                        str(scaled_height))
+        bit_rate = calc_scaled_bitrate(target_config,
+                                       target_config.video_max_width,
+                                       scaled_height)
+    else:
+        # Failed, have to break aspect ratio
+        vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
+                        str(target_config.video_max_height))
+        bit_rate = target_config.video_max_bitrate
+elif vid_info.vid_height > target_config.video_max_height:
+    # Scale down heigth and see if width is within maximum allowed
+    scale_factor = float(target_config.video_max_height) / vid_info.vid_height
+    scaled_width = int(float(vid_info.vid_width) * scale_factor)
+    if scaled_width % 2 == 1: # make sure scaled width divisible by 2
+        scaled_width += 1
+    if scaled_width < target_config.video_max_width:
+        vid_size_str = (" -s " + str(scaled_width) + "x" +
+                        str(target_config.video_max_height))
+        bit_rate = calc_scaled_bitrate(target_config,
+                                       scaled_width,
+                                       target_config.video_max_height)
+    else:
+        # Failed, have to break aspect ratio
+        vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
+                        str(target_config.video_max_height))
+        bit_rate = target_config.video_max_bitrate
+else:
+    # Video is smaller than target's max width/height, adjust bitrate
+    vid_size_str = ""
+    bit_rate = calc_scaled_bitrate(target_config,
+                                   vid_info.vid_width,
+                                   vid_info.vid_height)
 vid_bitrate_str = " -b " + str(bit_rate * 1000)
 
 # Stream mapping calculation
