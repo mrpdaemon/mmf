@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys,subprocess,optparse,vidparse,targetconfig
+import sys,subprocess,optparse,vidparse,targetconfig,tempfile,os
 
 optparser = optparse.OptionParser()
 optparser.add_option("-o","--output",action="store", type="string", dest="output_file",help="Output file name")
@@ -33,12 +33,15 @@ except:
     print sys.exc_info()[1]
     sys.exit() 
 
+temp_dir = tempfile.mkdtemp()
+print "Working directory: " + temp_dir
+os.chdir(temp_dir)
+
 # Audio encode
 ffmpeg_cmdline = "ffmpeg -v 0 -y -i " + input_file + " -vn -acodec pcm_s16le -ac " + str(target_config.audio_channel_count) + " -ar " + str(target_config.audio_sample_rate) + " -f wav pipe:1 2> /dev/null"
 print ffmpeg_cmdline
 ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True, stdout = subprocess.PIPE)
 
-#TODO: use a temp file instead of output-audio.aac
 audio_bitrate = min(vid_info.audio_bitrate, target_config.audio_max_bitrate) * 1000
 neroaac_cmdline = "/opt/neroaac/1.5.1/neroAacEnc -cbr " + str(audio_bitrate) + " -lc -ignorelength -if - -of output-audio.aac"
 print neroaac_cmdline
@@ -73,7 +76,6 @@ else:
     map_audio_str = "-map 1.0:1"
 
 # Video first pass
-#TODO: Do this stuff in a tempdir so x264 logfiles don't clash between multiple invocations
 ffmpeg_cmdline = "ffmpeg -y -an -i " + input_file + " " + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + " -preset slow -profile " + h264_profile_str + " -b " + vid_bitrate_str + " -f rawvideo /dev/null"
 print ffmpeg_cmdline
 ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
@@ -86,5 +88,7 @@ ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
 ffmpeg.wait()
 
 # Clean up intermediate files
-cleanup = subprocess.Popen("rm x264_2pass.log* output-audio.aac", shell = True)
-cleanup.wait()
+os.remove(os.path.join(temp_dir, "output-audio.aac"))
+os.remove(os.path.join(temp_dir, "x264_2pass.log.mbtree"))
+os.remove(os.path.join(temp_dir, "x264_2pass.log"))
+os.rmdir(temp_dir)
