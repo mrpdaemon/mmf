@@ -5,10 +5,14 @@ import sys,subprocess,optparse,vidparse
 optparser = optparse.OptionParser()
 optparser.add_option("-d","--debug",type="int", dest="debug_level",help="Enable debug logging")
 optparser.add_option("-m","--mplayer-opts",action="store", type="string", dest="mplayer_opts",help="Pass additional mplayer options")
+optparser.add_option("-2","--use-mplayer2", action = "store_true", dest="use_mplayer2", help="Use mplayer2 instead of mplayer")
 (options, extra_args) = optparser.parse_args()
 
 if (not options.mplayer_opts):
     options.mplayer_opts = ""
+
+if (not options.use_mplayer2):
+    options.use_mplayer2 = False
 
 if len(extra_args) == 0:
     print "No filename specified, exiting."
@@ -50,10 +54,15 @@ if DECISION_LOG >= 1:
     print "VDPAU codec: " + vdpau_codec
     print "S/W options: " + sw_opts
 
-mplayer_cmdline = "-vo vdpau" + vdpau_opts + " " + vdpau_codec + " " + options.mplayer_opts + " \"" + "".join(extra_args[0:]) +"\""
-print "Running: mplayer2 " + mplayer_cmdline + "\n"
+if options.use_mplayer2 == True:
+    mplayer_str = "mplayer2"
+else:
+    mplayer_str = "mplayer"
 
-p = subprocess.Popen("mplayer2 " + mplayer_cmdline, shell=True, stderr=subprocess.PIPE)
+mplayer_cmdline = "-vo vdpau" + vdpau_opts + " " + vdpau_codec + " " + options.mplayer_opts + " \"" + "".join(extra_args[0:]) +"\""
+print "Running: " + mplayer_str + " " + mplayer_cmdline + "\n"
+
+p = subprocess.Popen(mplayer_str + " " + mplayer_cmdline, shell=True, stderr=subprocess.PIPE)
 p_errlog = p.communicate()
 p_errlog_tokenized = p_errlog[1].split("\n")
 
@@ -67,9 +76,9 @@ if fatal == 1:
     print "== Hardware decoding FAILED. Falling back to software. =="
     print ""
     mplayer_cmdline = sw_opts + " " + options.mplayer_opts + " \"" + "".join(extra_args[0:]) + "\""
-    print "Running: mplayer2 " + mplayer_cmdline + "\n"
+    print "Running: " + mplayer_str + " " + mplayer_cmdline + "\n"
 
-    p = subprocess.Popen("mplayer2 " + mplayer_cmdline, shell=True)
+    p = subprocess.Popen(mplayer_str + " " + mplayer_cmdline, shell=True)
     p.communicate()
 
 sys.exit()
