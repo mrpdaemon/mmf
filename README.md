@@ -13,8 +13,8 @@ TODO
 ---------
 * Look into using ffmpeg for audio encode also.
 * Use proper path for neroaac and have a NEROAAC_PATH environment variable
-* Use shell=False for subprocess.Popen (OS portability)
 * Proper build/install support
+* Support for running transcode.py in Windows
 * Multiple input file support.
 * Multiple audio stream handling on input files (interactive mode or cmdline for selection)
 * Fix stream mapping to not be hardcoded.

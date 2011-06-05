@@ -12,7 +12,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-import sys,subprocess,optparse,vidparse,targetconfig,tempfile,os
+import sys,shlex,subprocess,optparse,vidparse,targetconfig,tempfile,os
 
 optparser = optparse.OptionParser()
 optparser.add_option("-o","--output",action="store", type="string",
@@ -83,9 +83,12 @@ ffmpeg_cmdline = ("ffmpeg -v 0 -y" + offset_str + length_str + " -i " +
                   input_file + " -vn -acodec pcm_s16le -ac " +
                   str(target_config.audio_channel_count) + " -ar " + 
                   str(target_config.audio_sample_rate) +
-                  " -f wav pipe:1 2> /dev/null")
+                  " -f wav pipe:1")
 print ffmpeg_cmdline
-ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True, stdout = subprocess.PIPE)
+ffmpeg_args = shlex.split(ffmpeg_cmdline)
+null_device = open(os.devnull, 'w')
+ffmpeg = subprocess.Popen(ffmpeg_args, stdout = subprocess.PIPE, stderr = null_device)
+null_device.close()
 
 audio_bitrate = min(vid_info.audio_bitrate, target_config.audio_max_bitrate)
 if audio_bitrate < target_config.audio_max_bitrate:
@@ -102,7 +105,8 @@ audio_bitrate = audio_bitrate * 1000
 neroaac_cmdline = ("/opt/neroaac/1.5.1/neroAacEnc -cbr " + str(audio_bitrate) +
                    " -lc -ignorelength -if - -of output-audio.aac")
 print neroaac_cmdline
-neroaac = subprocess.Popen(neroaac_cmdline, shell = True, stdin = ffmpeg.stdout)
+neroaac_args = shlex.split(neroaac_cmdline)
+neroaac = subprocess.Popen(neroaac_args, stdin = ffmpeg.stdout)
 
 while ffmpeg.returncode is not None:
     buffer = ffmpeg.communicate()
@@ -196,7 +200,8 @@ if options.double_pass == True:
                       " -profile " + h264_profile_str + vid_bitrate_str +
                       deint_str + fps_str + " -f rawvideo /dev/null")
     print ffmpeg_cmdline
-    ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
+    ffmpeg_args = shlex.split(ffmpeg_cmdline)
+    ffmpeg = subprocess.Popen(ffmpeg_args)
     ffmpeg.wait()
     pass_str = " -pass 2"
 else:
@@ -210,7 +215,8 @@ ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " +
                   vid_bitrate_str + deint_str + fps_str + " -acodec copy " +
                   options.output_file)
 print ffmpeg_cmdline
-ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
+ffmpeg_args = shlex.split(ffmpeg_cmdline)
+ffmpeg = subprocess.Popen(ffmpeg_args)
 ffmpeg.wait()
 
 # Clean up intermediate files
