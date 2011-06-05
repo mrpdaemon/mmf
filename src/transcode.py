@@ -112,9 +112,22 @@ if options.ffmpeg_preset != "":
 else:
     preset_str = ""
 
+# Interlace handling
+if vid_info.vid_interlaced == True:
+    deint_str = " -vf yadif=1"
+    if vid_info.vid_fps == 23.976:
+        fps_str = " -r 24000/1001"
+    elif vid_info.vid_fps == 29.970:
+        fps_str = " -r 30000/1001"
+    else:
+        fps_str = " -r " + str(vid_info.vid_fps)
+else:
+    deint_str = ""
+    fps_str = ""
+
 if options.double_pass == True:
     # Video first pass
-    ffmpeg_cmdline = "ffmpeg -y -an" + offset_str + length_str + " -i " + input_file + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + preset_str + " -profile " + h264_profile_str + vid_bitrate_str + " -f rawvideo /dev/null"
+    ffmpeg_cmdline = "ffmpeg -y -an" + offset_str + length_str + " -i " + input_file + vid_size_str + " -pass 1 -vcodec libx264 -threads 0 -level " + h264_level_str + preset_str + " -profile " + h264_profile_str + vid_bitrate_str + deint_str + fps_str + " -f rawvideo /dev/null"
     print ffmpeg_cmdline
     ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
     ffmpeg.wait()
@@ -123,7 +136,7 @@ else:
     pass_str = ""
 
 # Video second (or first) pass + muxer step
-ffmpeg_cmdline = "ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " + input_file + map_audio_str + " -i output-audio.aac" + vid_size_str + pass_str + " -vcodec libx264 -threads 0 -level " + h264_level_str + preset_str +" -profile " + h264_profile_str + vid_bitrate_str + " -acodec copy " + options.output_file
+ffmpeg_cmdline = "ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " + input_file + map_audio_str + " -i output-audio.aac" + vid_size_str + pass_str + " -vcodec libx264 -threads 0 -level " + h264_level_str + preset_str +" -profile " + h264_profile_str + vid_bitrate_str + deint_str + fps_str + " -acodec copy " + options.output_file
 print ffmpeg_cmdline
 ffmpeg = subprocess.Popen(ffmpeg_cmdline, shell = True)
 ffmpeg.wait()
