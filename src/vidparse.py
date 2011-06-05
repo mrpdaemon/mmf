@@ -87,7 +87,8 @@ class VidParser:
         self.input_file_name = input_file_name
         current_section = INVALID_SECTION
         
-        mp = subprocess.Popen(['mediainfo', "".join(input_file_name)], stdout=subprocess.PIPE)
+        mp = subprocess.Popen(['mediainfo', "".join(input_file_name)],
+                              stdout=subprocess.PIPE)
         mp_output = mp.communicate()
         
         mp_tokenized = mp_output[0].split("\n")
@@ -138,7 +139,9 @@ class VidParser:
                     audio_channel_str = get_field_value(mp_line)
                     self.audio_channels = int(tokenize_field(audio_channel_str)[0])
 
-        if (self._vid_codec_id == "avc1") or (self._vid_codec_id == "V_MPEG4/ISO/AVC") or (self._vid_format == "AVC"):
+        if ((self._vid_codec_id == "avc1") or
+            (self._vid_codec_id == "V_MPEG4/ISO/AVC") or
+            (self._vid_format == "AVC")):
             self.vid_codec = VIDEO_CODEC_H264
         elif (self._vid_codec_id == "WMV3"):
             self.vid_codec = VIDEO_CODEC_WMV3
