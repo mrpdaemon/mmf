@@ -14,6 +14,7 @@ TODO
 * Proper build/install support
 * Support for running transcode.py in Windows
 * Multiple input file support.
+* Add targets for YouTube and 1080{p|i}-24Mbps with HQ audio.
 * Multiple audio stream handling on input files (interactive mode or cmdline for selection)
 * Fix stream mapping to not be hardcoded.
 * Batching job creation support.
