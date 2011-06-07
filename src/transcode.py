@@ -29,6 +29,9 @@ optparser.add_option("-2","--double-pass", action = "store_true",
 optparser.add_option("-p","--preset",action="store", type="string",
                      dest="ffmpeg_preset",
                      help="FFMpeg preset to use for encoding")
+optparser.add_option("-n","--use-neroaac", action = "store_true",
+                     dest="use_neroaac",
+                     help="Use neroAacEnc instead of ffmpeg for audio encoding")
 (options, extra_args) = optparser.parse_args()
 
 if options.output_file == None:
@@ -44,12 +47,6 @@ if len(extra_args) == 0:
     sys.exit()
 else:
     input_file = extra_args[0]
-
-if not options.double_pass:
-    options.double_pass = False
-
-if not options.ffmpeg_preset:
-    options.ffmpeg_preset = ""
 
 try:
     vid_info = vidparse.VidParser(input_file)
@@ -78,18 +75,7 @@ if not options.start_offset:
 else:
     offset_str = " -ss " + str(options.start_offset)
 
-# Audio encode
-ffmpeg_cmdline = ("ffmpeg -v 0 -y" + offset_str + length_str + " -i " +
-                  input_file + " -vn -acodec pcm_s16le -ac " +
-                  str(target_config.audio_channel_count) + " -ar " + 
-                  str(target_config.audio_sample_rate) +
-                  " -f wav pipe:1")
-print ffmpeg_cmdline
-ffmpeg_args = shlex.split(ffmpeg_cmdline)
-null_device = open(os.devnull, 'w')
-ffmpeg = subprocess.Popen(ffmpeg_args, stdout = subprocess.PIPE, stderr = null_device)
-null_device.close()
-
+# Audio parameter calculation
 audio_bitrate = min(vid_info.audio_bitrate, target_config.audio_max_bitrate)
 if audio_bitrate < target_config.audio_max_bitrate:
     # Round up bitrate to a standard step unless it is > 320 in which case just keep it
@@ -102,22 +88,35 @@ if audio_bitrate < target_config.audio_max_bitrate:
         prev_rate = rate
 audio_bitrate = audio_bitrate * 1000
 
-try:
-    neroaac_dir = os.environ['NEROAAC_DIR']
-except:
-    neroaac_dir = ""
-neroaac_path = os.path.join(neroaac_dir, "neroAacEnc")
-neroaac_cmdline = (neroaac_path + " -cbr " + str(audio_bitrate) +
-                   " -lc -ignorelength -if - -of output-audio.aac")
-print neroaac_cmdline
-neroaac_args = shlex.split(neroaac_cmdline)
-neroaac = subprocess.Popen(neroaac_args, stdin = ffmpeg.stdout)
+if options.use_neroaac:
+    # Audio encode with neroAacEnc using ffmpeg to convert input to pcm
+    ffmpeg_cmdline = ("ffmpeg -v 0 -y" + offset_str + length_str + " -i " +
+                      input_file + " -vn -acodec pcm_s16le -ac " +
+                      str(target_config.audio_channel_count) + " -ar " + 
+                      str(target_config.audio_sample_rate) +
+                      " -f wav pipe:1")
+    print ffmpeg_cmdline
+    ffmpeg_args = shlex.split(ffmpeg_cmdline)
+    null_device = open(os.devnull, 'w')
+    ffmpeg = subprocess.Popen(ffmpeg_args, stdout = subprocess.PIPE, stderr = null_device)
+    null_device.close()
+    
+    try:
+        neroaac_dir = os.environ['NEROAAC_DIR']
+    except:
+        neroaac_dir = ""
+    neroaac_path = os.path.join(neroaac_dir, "neroAacEnc")
+    neroaac_cmdline = (neroaac_path + " -cbr " + str(audio_bitrate) +
+                       " -lc -ignorelength -if - -of output-audio.aac")
+    print neroaac_cmdline
+    neroaac_args = shlex.split(neroaac_cmdline)
+    neroaac = subprocess.Popen(neroaac_args, stdin = ffmpeg.stdout)
+    
+    while ffmpeg.returncode is not None:
+        buffer = ffmpeg.communicate()
+        neroaac.communicate(buffer)
 
-while ffmpeg.returncode is not None:
-    buffer = ffmpeg.communicate()
-    neroaac.communicate(buffer)
-
-neroaac.wait()
+    neroaac.wait()
 
 # Video parameter calculations
 h264_level_str = target_config.codec_h264_level.replace('.', '')
@@ -171,21 +170,13 @@ else:
                                    vid_info.vid_height)
 vid_bitrate_str = " -b " + str(bit_rate * 1000)
 
-# Stream mapping calculation
-if vid_info.audio_stream_id > vid_info.vid_stream_id:
-    map_vid_str = " -map 0:0"
-    map_audio_str = " -map 1:0"
-else:
-    map_vid_str = " -map 0.1:0.1"
-    map_audio_str = " -map 1.0:1"
-
-if options.ffmpeg_preset != "":
+if options.ffmpeg_preset:
     preset_str = " -preset " + options.ffmpeg_preset
 else:
     preset_str = ""
 
 # Interlace handling
-if vid_info.vid_interlaced == True:
+if vid_info.vid_interlaced:
     deint_str = " -vf yadif=1"
     if vid_info.vid_fps == 23.976:
         fps_str = " -r 24000/1001"
@@ -197,7 +188,7 @@ else:
     deint_str = ""
     fps_str = ""
 
-if options.double_pass == True:
+if options.double_pass:
     # Video first pass
     ffmpeg_cmdline = ("ffmpeg -y -an" + offset_str + length_str + " -i " +
                       input_file + vid_size_str + " -pass 1 -vcodec libx264" +
@@ -212,12 +203,32 @@ if options.double_pass == True:
 else:
     pass_str = ""
 
-# Video second (or first) pass + muxer step
+# Video second (or first) pass + muxer step (+ audio encode if not using neroAac)
+if options.use_neroaac:
+    # Stream mapping calculation
+    if vid_info.audio_stream_id > vid_info.vid_stream_id:
+        map_vid_str = " -map 0:0"
+        map_audio_str = " -map 1:0"
+    else:
+        map_vid_str = " -map 0.1:0.1"
+        map_audio_str = " -map 1.0:1"
+
+    audio_input_str = map_audio_str + " -i output-audio.aac"
+    audio_codec_str = " -acodec copy"
+else:
+    map_vid_str = ""
+    map_audio_str = ""
+    audio_input_str = ""
+    audio_codec_str = (" -acodec libvo_aacenc -ac " +
+                       str(target_config.audio_channel_count) + " -ar " +
+                       str(target_config.audio_sample_rate) + " -ab " +
+                       str(audio_bitrate))
+
 ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " +
-                  input_file + map_audio_str + " -i output-audio.aac" +
-                  vid_size_str + pass_str + " -vcodec libx264 -threads 0 -level " +
-                  h264_level_str + preset_str +" -profile " + h264_profile_str +
-                  vid_bitrate_str + deint_str + fps_str + " -acodec copy " +
+                  input_file + audio_input_str + vid_size_str + pass_str +
+                  " -vcodec libx264 -threads 0 -level " + h264_level_str +
+                  preset_str +" -profile " + h264_profile_str + vid_bitrate_str
+                  + deint_str + fps_str + audio_codec_str + " " +
                   options.output_file)
 print ffmpeg_cmdline
 ffmpeg_args = shlex.split(ffmpeg_cmdline)
@@ -225,8 +236,9 @@ ffmpeg = subprocess.Popen(ffmpeg_args)
 ffmpeg.wait()
 
 # Clean up intermediate files
-os.remove(os.path.join(temp_dir, "output-audio.aac"))
-if options.double_pass == True:
+if options.use_neroaac:
+    os.remove(os.path.join(temp_dir, "output-audio.aac"))
+if options.double_pass:
     os.remove(os.path.join(temp_dir, "x264_2pass.log.mbtree"))
     os.remove(os.path.join(temp_dir, "x264_2pass.log"))
 os.rmdir(temp_dir)

@@ -11,7 +11,6 @@ transcode.py is an ffmpeg frontend that can transcode the an input video into a 
 
 TODO
 ---------
-* Look into using ffmpeg for audio encode also.
 * Proper build/install support
 * Support for running transcode.py in Windows
 * Multiple input file support.
