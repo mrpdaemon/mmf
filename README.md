@@ -7,11 +7,10 @@ Usage
 ---------
 The player.py application is a frontend for mplayer that parses the input file and passes the right parameters to take advantage of VDPAU acceleration. Useful if you have an nvidia card since mplayer does NOT take advantage of video decoding offload by default.
 
-transcode.py is an ffmpeg frontend that can transcode an input video into a format suitable for the specified target device. Currently the codebase includes target specs for a few devices that I have (motorola xoom, samsung/google nexus s and Roku XDS streaming player), pretty much all using H.264/AAC LC muxed into mp4. 
+transcode.py is an ffmpeg frontend that can transcode an input video into a format suitable for the specified target device. Currently the codebase includes target specs for a few devices like the Motorola Xoom, Apple iPhone/iPad, Samsung/Google Nexus S and Roku XDS streaming player, pretty much all using H.264/AAC muxed into mp4. 
 
 TODO
 ---------
-* Add target specs for iPhone and iPad.
 * Proper build/install support
 * Support for running transcode.py in Windows
 * Multiple input file support.
