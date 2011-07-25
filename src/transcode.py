@@ -12,7 +12,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-import sys,shlex,subprocess,optparse,vidparse,targetconfig,tempfile,os
+import sys,shlex,subprocess,optparse,vidparse,targetconfig,tempfile,os,multifile
 
 optparser = optparse.OptionParser()
 optparser.add_option("-o","--output",action="store", type="string",
@@ -45,11 +45,27 @@ if options.target_string == None:
 if len(extra_args) == 0:
     print "No input file specified, exiting."
     sys.exit()
-else:
+elif len(extra_args) == 1:
+    single_file = True
     input_file = extra_args[0]
+    input_file_str = " -i " + input_file
+else:
+    if options.duration or options.start_offset:
+        print "Multiple file mode is not compatible with --length or --offset."
+        sys.exit()
+    single_file = False
+    try:
+        input_files = multifile.MultiFileInput(extra_args)
+    except:
+        print sys.exc_info()[1]
+        sys.exit() 
+    input_file_str = " -i -"
 
 try:
-    vid_info = vidparse.VidParser(input_file)
+    if single_file == True:
+        vid_info = vidparse.VidParser(extra_args[0])
+    else:
+        vid_info = input_files.parser
 except:
     print sys.exc_info()[1]
     sys.exit()
@@ -90,16 +106,20 @@ audio_bitrate = audio_bitrate * 1000
 
 if options.use_neroaac:
     # Audio encode with neroAacEnc using ffmpeg to convert input to pcm
-    ffmpeg_cmdline = ("ffmpeg -v 0 -y" + offset_str + length_str + " -i " +
-                      input_file + " -vn -acodec pcm_s16le -ac " +
+    ffmpeg_cmdline = ("ffmpeg -v 0 -y" + offset_str + length_str +
+                      input_file_str + " -vn -acodec pcm_s16le -ac " +
                       str(target_config.audio_channel_count) + " -ar " + 
                       str(target_config.audio_sample_rate) +
                       " -f wav pipe:1")
     print ffmpeg_cmdline
     ffmpeg_args = shlex.split(ffmpeg_cmdline)
     null_device = open(os.devnull, 'w')
-    ffmpeg = subprocess.Popen(ffmpeg_args, stdout = subprocess.PIPE, stderr = null_device)
-    null_device.close()
+    if single_file == True:
+        ffmpeg = subprocess.Popen(ffmpeg_args, stdout = subprocess.PIPE,
+                                  stderr = null_device)
+    else:
+        ffmpeg = subprocess.Popen(ffmpeg_args, stdin = subprocess.PIPE, 
+                                  stdout = subprocess.PIPE, stderr = null_device)
     
     try:
         neroaac_dir = os.environ['NEROAAC_DIR']
@@ -111,13 +131,26 @@ if options.use_neroaac:
     print neroaac_cmdline
     neroaac_args = shlex.split(neroaac_cmdline)
     neroaac = subprocess.Popen(neroaac_args, stdin = ffmpeg.stdout)
+
+    if single_file == True:
+        while ffmpeg.returncode != None:
+            buffer = ffmpeg.communicate()
+            neroaac.communicate(buffer)
+        neroaac.wait()
+    else:
+        input_files.set_output(ffmpeg.stdin)
+        input_files.write_all()
     
-    while ffmpeg.returncode is not None:
-        buffer = ffmpeg.communicate()
-        neroaac.communicate(buffer)
+        # Flush ffmpeg's stdout and kill it, couldn't find any other way of
+        # making neroaac drain ffmpeg's stdout without hanging
+        ffmpeg.stdout.flush()
+        ffmpeg.kill()
+        neroaac.wait()
 
-    neroaac.wait()
-
+        input_files.rewind()
+    
+    null_device.close()
+    
 # Video parameter calculations
 h264_level_str = target_config.codec_h264_level.replace('.', '')
 h264_profile_str = target_config.codec_h264_profile.lower()
@@ -190,15 +223,24 @@ else:
 
 if options.double_pass:
     # Video first pass
-    ffmpeg_cmdline = ("ffmpeg -y -an" + offset_str + length_str + " -i " +
-                      input_file + vid_size_str + " -pass 1 -vcodec libx264" +
+    ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + input_file_str +
+                      vid_size_str + " -pass 1 -vcodec libx264" +
                       " -threads 0 -level " + h264_level_str + preset_str +
                       " -profile " + h264_profile_str + vid_bitrate_str +
-                      deint_str + fps_str + " -f rawvideo /dev/null")
+                      deint_str + fps_str + " -acodec copy -f rawvideo /dev/null")
     print ffmpeg_cmdline
     ffmpeg_args = shlex.split(ffmpeg_cmdline)
-    ffmpeg = subprocess.Popen(ffmpeg_args)
+    if single_file == True:
+        ffmpeg = subprocess.Popen(ffmpeg_args)
+    else:
+        ffmpeg = subprocess.Popen(ffmpeg_args, stdin = subprocess.PIPE)
+        input_files.set_output(ffmpeg.stdin)
+        input_files.write_all()
+
     ffmpeg.wait()
+    
+    if single_file == False:
+        input_files.rewind()
     pass_str = " -pass 2"
 else:
     pass_str = ""
@@ -224,15 +266,22 @@ else:
                        str(target_config.audio_sample_rate) + " -ab " +
                        str(audio_bitrate))
 
-ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + map_vid_str + " -i " +
-                  input_file + audio_input_str + vid_size_str + pass_str +
+ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + map_vid_str +
+                  input_file_str + audio_input_str + vid_size_str + pass_str +
                   " -vcodec libx264 -threads 0 -level " + h264_level_str +
                   preset_str +" -profile " + h264_profile_str + vid_bitrate_str
                   + deint_str + fps_str + audio_codec_str + " " +
                   options.output_file)
 print ffmpeg_cmdline
 ffmpeg_args = shlex.split(ffmpeg_cmdline)
-ffmpeg = subprocess.Popen(ffmpeg_args)
+
+if single_file == True:
+    ffmpeg = subprocess.Popen(ffmpeg_args)
+else:
+    ffmpeg = subprocess.Popen(ffmpeg_args, stdin = subprocess.PIPE)
+    input_files.set_output(ffmpeg.stdin)
+    input_files.write_all()
+
 ffmpeg.wait()
 
 # Clean up intermediate files
