@@ -57,6 +57,7 @@ class TargetConfig:
     
     codec_h264_profile = ""
     codec_h264_level = ""
+    codec_h264_same = False
     
     audio_max_bitrate = 0
     audio_sample_rate = 0
@@ -89,6 +90,10 @@ class TargetConfig:
                 self.audio_sample_rate = get_int_field(line)
             elif line.startswith("AUDIO_CHANNEL_COUNT"):
                 self.audio_channel_count = get_int_field(line)
+        
+        if (self.codec_h264_level.lower() == "same" or
+            self.codec_h264_profile.lower() == "same"):
+            self.codec_h264_same = True
 
     def __repr__(self):
         retStr = "\nTarget file: "+ self.target_file + "\n"

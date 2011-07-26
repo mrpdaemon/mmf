@@ -152,11 +152,25 @@ if options.use_neroaac:
     null_device.close()
     
 # Video parameter calculations
-h264_level_str = target_config.codec_h264_level.replace('.', '')
-h264_profile_str = target_config.codec_h264_profile.lower()
+if target_config.codec_h264_same == True:
+    # use same profile/level as input
+    if vid_info.vid_format_profile == "":
+        print vid_info
+        print "Same H.264 profile/level as input requested, but no info found in input file."
+        sys.exit()
+    partition = vid_info.vid_format_profile.partition('@')
+    h264_profile_str = partition[0].lower()
+    h264_level_str = partition[2].replace('.','').replace('L','')
+    
+else:
+    # use target preset for profile/level
+    h264_level_str = target_config.codec_h264_level.replace('.', '')
+    h264_profile_str = target_config.codec_h264_profile.lower()
+
+video_max_bitrate = min(target_config.video_max_bitrate, vid_info.vid_bitrate)
 
 def calc_scaled_bitrate(target_config, scaled_width, scaled_height):
-    return (int(target_config.video_max_bitrate * 
+    return (int(video_max_bitrate * 
             float(scaled_width * scaled_height) /
             float(target_config.video_max_width * 
                   target_config.video_max_height)))
@@ -177,7 +191,7 @@ if vid_info.vid_width > target_config.video_max_width:
         # Failed, have to break aspect ratio
         vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
                         str(target_config.video_max_height))
-        bit_rate = target_config.video_max_bitrate
+        bit_rate = video_max_bitrate
 elif vid_info.vid_height > target_config.video_max_height:
     # Scale down heigth and see if width is within maximum allowed
     scale_factor = float(target_config.video_max_height) / vid_info.vid_height
@@ -194,7 +208,7 @@ elif vid_info.vid_height > target_config.video_max_height:
         # Failed, have to break aspect ratio
         vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
                         str(target_config.video_max_height))
-        bit_rate = target_config.video_max_bitrate
+        bit_rate = video_max_bitrate
 else:
     # Video is smaller than target's max width/height, adjust bitrate
     vid_size_str = ""

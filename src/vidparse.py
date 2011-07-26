@@ -61,6 +61,7 @@ class VidParser:
     _vid_codec_id = ""
     _vid_format = ""
     vid_codec = ""
+    vid_format_profile = ""
     vid_interlaced = False
     vid_width = 0
     vid_height = 0
@@ -102,6 +103,8 @@ class VidParser:
             elif current_section == VIDEO_SECTION:
                 if mp_line.startswith("Format  "):
                     self._vid_format = get_field_value(mp_line)
+                elif mp_line.startswith("Format profile "):
+                    self.vid_format_profile = get_field_value(mp_line)
                 elif mp_line.startswith("Codec ID "):
                     self._vid_codec_id = get_field_value(mp_line)
                 elif  mp_line.startswith("ID "):
@@ -156,6 +159,7 @@ class VidParser:
         retStr = "\nInput file: "+ self.input_file_name + "\n\n"
         retStr += "Video:\n"
         retStr += "\tStream ID: " + str(self.vid_stream_id) + "\n"
+        retStr += "\tFormat profile: "+ self.vid_format_profile + "\n"
         retStr += "\tCodec: "+ self.vid_codec + "\n"
         retStr += "\tInterlaced: " + str(self.vid_interlaced) + "\n"
         retStr += "\tWidth: " + str(self.vid_width) + "\n"

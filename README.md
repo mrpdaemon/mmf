@@ -11,9 +11,9 @@ transcode.py is an ffmpeg frontend that can transcode an input video into a form
 
 TODO
 ---------
-* Support for "same quality" via NOLIMIT max bitrate configuration
 * Support copy audio codec
-* Add targets for 1080p-MP4-H264-{AAC|COPY}
+* Add target for 1080p-mp4-h264-copy
+* Support "same" for audio sample rate
 * Improve usage() documentation
 * Implement split output support via MAX_OUTPUT_DURATION
 * Add target for YouTube
