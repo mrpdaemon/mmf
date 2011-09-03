@@ -210,11 +210,9 @@ elif vid_info.vid_height > target_config.video_max_height:
                         str(target_config.video_max_height))
         bit_rate = video_max_bitrate
 else:
-    # Video is smaller than target's max width/height, adjust bitrate
+    # Video is smaller than target's max width/height, use max bitrate
     vid_size_str = ""
-    bit_rate = calc_scaled_bitrate(target_config,
-                                   vid_info.vid_width,
-                                   vid_info.vid_height)
+    bit_rate = video_max_bitrate
 vid_bitrate_str = " -b " + str(bit_rate * 1000)
 
 if options.ffmpeg_preset:
