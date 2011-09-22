@@ -16,8 +16,16 @@ import os.path, re
 
 TARGET_FILE_EXTENSION=".mmftarget"
 TARGET_DIRECTORY="targets"
+INSTALL_ENV_VAR="MMF_INSTALL_DIR"
 
 def find_target_file(target_string):
+    env_dir = os.getenv(INSTALL_ENV_VAR);
+
+    if env_dir is not None:
+        target_prefix = env_dir + "/" + TARGET_DIRECTORY;
+    else:
+        target_prefix = TARGET_DIRECTORY;
+
     if TARGET_FILE_EXTENSION in target_string:
         target_file = target_string
     else:
@@ -25,8 +33,8 @@ def find_target_file(target_string):
     
     if os.path.isfile(target_file):
         return target_file
-    elif os.path.isfile(TARGET_DIRECTORY + "/" + target_file):
-        return TARGET_DIRECTORY + "/" + target_file
+    elif os.path.isfile(target_prefix + "/" + target_file):
+        return target_prefix + "/" + target_file
     else:
         return ""
 
