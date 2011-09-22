@@ -56,25 +56,25 @@ class MultiFileInput:
                             " != " + str(parser2.audio_samplerate))
         
     def _validate_list(self, file_list):
-        '''Validate the input file list to make sure all files are similar'''
-        print "Validating multiple file compatibility..."
+        '''Validate the input cur_file list to make sure all files are similar'''
+        print "Validating multiple cur_file compatibility..."
         
-        for file in file_list:
+        for cur_file in file_list:
             if self.parser == None:
                 try:
-                    self.parser = vidparse.VidParser(file)
+                    self.parser = vidparse.VidParser(cur_file)
                 except Exception as e:
                     raise e
             else:
                 try:
-                    cur_parser = vidparse.VidParser(file)
+                    cur_parser = vidparse.VidParser(cur_file)
                 except Exception as e:
                     raise e
 
                 try:
                     self._compare_parsers(self.parser, cur_parser)
                 except Exception as e:
-                    print ("Files '" + file_list[0] + "' and '" + file +
+                    print ("Files '" + file_list[0] + "' and '" + cur_file +
                            "' are incompatible:")
                     raise e
         
@@ -92,20 +92,20 @@ class MultiFileInput:
 
     def _read(self):
         '''Reads data from the current file and returns it'''
-        buffer = ""
+        buf = ""
         
         if (self._current_idx == -1):
             self._open_next()
 
         if self._current_file != None:    
-            buffer = self._current_file.read(READ_BUFFER_SIZE)
+            buf = self._current_file.read(READ_BUFFER_SIZE)
 
-        if buffer == "":
+        if buf == "":
             self._open_next()
             if self._current_file != None:
-                buffer = self._current_file.read(READ_BUFFER_SIZE)
+                buf = self._current_file.read(READ_BUFFER_SIZE)
 
-        return buffer
+        return buf
 
     def __init__(self, file_list):
         try:
@@ -120,14 +120,14 @@ class MultiFileInput:
 
     def write_all(self):
         '''Read all the files in the input list and write them to the output set with set_output()'''
-        buffer = self._read()
-        while buffer != "":
+        buf = self._read()
+        while buf != "":
             try:
-                self._output_fd.write(buffer)
+                self._output_fd.write(buf)
             except:
                 # Output file descriptor closed, reader process is gone...
                 return
-            buffer = self._read()
+            buf = self._read()
         self._output_fd.close()
     
     def rewind(self):
