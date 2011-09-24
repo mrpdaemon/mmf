@@ -38,33 +38,36 @@ def main(argv = sys.argv):
     
     DECISION_LOG = options.debug_level
     
-    vidInfo = vidparse.VidParser(extra_args[0])
+    vid_info = vidparse.VidParser(extra_args[0])
     
     # Decision steps
     vdpau_codec=""
-    #vdpau_opts=":sharpen=0.4:denoise=0.4"
     vdpau_opts=""
     sw_opts=""
     
     # Deinterlace for non-progressive videos
-    if vidInfo.vid_interlaced == True:
+    if vid_info.vid_interlaced == True:
         vdpau_opts = vdpau_opts + ":deint=4"
         sw_opts = sw_opts + "-vf pp=yadif:1"
-    
+    else:
+        # Sharpen and de-noise progressive videos. Using these filters in
+        # conjunction with deinterlace puts too much load on the GPU
+        vdpau_opts = vdpau_opts + ":sharpen=0.4:denoise=0.4"
+
     # HQ scaling only if video isn't in native resolution
-    if vidInfo.vid_width != 1920 and vidInfo.vid_height != 1080:
-        vdpau_opts = vdpau_opts + ":hqscaling=1"
+    if vid_info.vid_width != 1920 and vid_info.vid_height != 1080:
+        vdpau_opts = vdpau_opts + ":hqscaling=1"          
     
     # Codec selection
-    if vidInfo.vid_codec == vidparse.VIDEO_CODEC_H264:
+    if vid_info.vid_codec == vidparse.VIDEO_CODEC_H264:
             vdpau_codec = "-vc ffh264vdpau"
-    elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_WMV3:
+    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_WMV3:
             vdpau_codec = "-vc ffwmv3vdpau"
-    elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_DIVX:
+    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_DIVX:
             vdpau_codec = "-vc ffodivxvdpau"
-    elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_MPEG12:
+    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_MPEG12:
             vdpau_codec = "-vc ffmpeg12vdpau"
-    elif vidInfo.vid_codec == vidparse.VIDEO_CODEC_VC1:
+    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_VC1:
             vdpau_codec = "-vc ffvc1vdpau"
     
     if DECISION_LOG >= 1:
