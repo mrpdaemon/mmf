@@ -12,7 +12,11 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-import subprocess, re, os.path
+import os.path
+import re
+import subprocess
+
+from mmf import errors
 
 VIDEO_CODEC_H264 = "H.264"
 VIDEO_CODEC_WMV3 = "WMV3"
@@ -20,18 +24,18 @@ VIDEO_CODEC_DIVX = "DIVX"
 VIDEO_CODEC_MPEG12 = "MPEG 1/2"
 VIDEO_CODEC_VC1 = "VC-1"
 
-def get_field_value(line_str):
+def _get_field_value(line_str):
     splitter = re.compile(r'[:]+')
     line_tokenized = splitter.split(line_str)
     return line_tokenized[len(line_tokenized) - 1][1:]
 
-def tokenize_field(field_str):
+def _tokenize_field(field_str):
     splitter = re.compile(r'[ ]+')
     return splitter.split(field_str)
 
-def field_collapse_thousands(field_str):
+def _field_collapse_thousands(field_str):
     result = []
-    field_str_tokenized = tokenize_field(field_str)
+    field_str_tokenized = _tokenize_field(field_str)
     if len(field_str_tokenized) == 3: # need to combine first 2
         result.append(field_str_tokenized[0] + field_str_tokenized[1])
         result.append(field_str_tokenized[2])
@@ -40,53 +44,52 @@ def field_collapse_thousands(field_str):
         result.append(field_str_tokenized[1])
     return result
 
-def float_to_str_trunc(float_val):
+def _float_to_str_trunc(float_val):
     return str(round(float_val, 0))[:-2]
 
-def bit_rate_convert(bit_rate_tokenized):
+def _bit_rate_convert(bit_rate_tokenized):
     if bit_rate_tokenized[1] == "Kbps":
-        return float_to_str_trunc(float(bit_rate_tokenized[0]))
+        return _float_to_str_trunc(float(bit_rate_tokenized[0]))
     elif bit_rate_tokenized[1] == "Mbps":
-        return float_to_str_trunc(float(bit_rate_tokenized[0]) * 1024)
+        return _float_to_str_trunc(float(bit_rate_tokenized[0]) * 1024)
     else:
-        raise Exception("Unknown bit rate string")
+        raise errors.MMFError("Unknown bit rate string")
                  
 class VidParser:
     """Video file parser class using mediainfo"""
-    
-    input_file_name = ""
-    
-    # Video parameters
-    vid_stream_id = -1
-    _vid_codec_id = ""
-    _vid_format = ""
-    vid_codec = ""
-    vid_format_profile = ""
-    vid_interlaced = False
-    vid_width = 0
-    vid_height = 0
-    vid_bitrate = 0
-    vid_fps = 0.0
-    
-    # Audio parameters
-    audio_stream_id = -1
-    audio_format = ""
-    audio_codec_id = ""
-    audio_channels = 0
-    audio_bitrate = 0
-    audio_samplerate = 0
 
+    INVALID_SECTION = 0
+    VIDEO_SECTION = 1
+    AUDIO_SECTION = 2
+    TEXT_SECTION = 3
+        
     def __init__(self, input_file_name):
-        INVALID_SECTION = 0
-        VIDEO_SECTION = 1
-        AUDIO_SECTION = 2
-        TEXT_SECTION = 3
+        self.vid_stream_id = None
+        self.vid_format_profile = None
+        self.vid_codec = None
+        self.vid_interlaced = None
+        self.vid_width = None
+        self.vid_height = None
+        self.vid_bitrate = None
+        self.vid_fps = None
+        self._vid_codec_id = None
+        self._vid_format = None
+
+        self.audio_stream_id = None
+        self.audio_format = None
+        self.audio_codec_id = None
+        self.audio_channels = None
+        self.audio_bitrate = None
+        self.audio_samplerate = None
+
+        self.diff_str = None        
     
         if not os.path.isfile(input_file_name):
-            raise Exception("Input file '" + input_file_name + "' not found.");
-            
+            raise errors.MMFError("Input file '%s' not found." %
+                                  input_file_name);
+
         self.input_file_name = input_file_name
-        current_section = INVALID_SECTION
+        current_section = VidParser.INVALID_SECTION
         
         mp = subprocess.Popen(['mediainfo', "".join(input_file_name)],
                               stdout=subprocess.PIPE)
@@ -95,52 +98,62 @@ class VidParser:
         mp_tokenized = mp_output[0].split("\n")
         for mp_line in mp_tokenized:
             if mp_line == "Video":
-                current_section = VIDEO_SECTION
+                current_section = VidParser.VIDEO_SECTION
             elif mp_line == "Audio" or mp_line == "Audio #1":
-                current_section = AUDIO_SECTION
+                current_section = VidParser.AUDIO_SECTION
             elif mp_line == "Text":
-                current_section = TEXT_SECTION
-            elif current_section == VIDEO_SECTION:
+                current_section = VidParser.TEXT_SECTION
+            elif current_section == VidParser.VIDEO_SECTION:
                 if mp_line.startswith("Format  "):
-                    self._vid_format = get_field_value(mp_line)
+                    self._vid_format = _get_field_value(mp_line)
                 elif mp_line.startswith("Format profile "):
-                    self.vid_format_profile = get_field_value(mp_line)
+                    self.vid_format_profile = _get_field_value(mp_line)
                 elif mp_line.startswith("Codec ID "):
-                    self._vid_codec_id = get_field_value(mp_line)
+                    self._vid_codec_id = _get_field_value(mp_line)
                 elif  mp_line.startswith("ID "):
-                    self.vid_stream_id = int(tokenize_field(get_field_value(mp_line))[0])
+                    self.vid_stream_id = int(_tokenize_field(
+                        _get_field_value(mp_line))[0])
                 elif mp_line.startswith("Scan type "):
-                    vid_scan = get_field_value(mp_line)
+                    vid_scan = _get_field_value(mp_line)
                     if (vid_scan == "Interlaced") or (vid_scan == "MBAFF"):
                         self.vid_interlaced = True
+                    elif (vid_scan == "Progressive"):
+                        self.vid_interlaced = False
                 elif mp_line.startswith("Width "):
-                    vid_width_str = get_field_value(mp_line)
-                    self.vid_width = int(field_collapse_thousands(vid_width_str)[0])
+                    vid_width_str = _get_field_value(mp_line)
+                    self.vid_width = int(_field_collapse_thousands(
+                        vid_width_str)[0])
                 elif mp_line.startswith("Height "):
-                    vid_height_str = get_field_value(mp_line)
-                    self.vid_height = int(field_collapse_thousands(vid_height_str)[0])
+                    vid_height_str = _get_field_value(mp_line)
+                    self.vid_height = int(_field_collapse_thousands(
+                        vid_height_str)[0])
                 elif mp_line.startswith("Bit rate  "):
-                    vid_bit_rate_str = get_field_value(mp_line)
-                    self.vid_bitrate = int(bit_rate_convert(field_collapse_thousands(vid_bit_rate_str)))
+                    vid_bit_rate_str = _get_field_value(mp_line)
+                    self.vid_bitrate = int(_bit_rate_convert(
+                        _field_collapse_thousands(vid_bit_rate_str)))
                 elif mp_line.startswith("Frame rate  "):
-                    vid_fps_str = get_field_value(mp_line)
-                    self.vid_fps = float(tokenize_field(vid_fps_str)[0])
-            elif current_section == AUDIO_SECTION:
+                    vid_fps_str = _get_field_value(mp_line)
+                    self.vid_fps = float(_tokenize_field(vid_fps_str)[0])
+            elif current_section == VidParser.AUDIO_SECTION:
                 if mp_line.startswith("Format  "):
-                    self.audio_format = get_field_value(mp_line)
+                    self.audio_format = _get_field_value(mp_line)
                 elif mp_line.startswith("Codec ID "):
-                    self.audio_codec_id = get_field_value(mp_line)
+                    self.audio_codec_id = _get_field_value(mp_line)
                 elif mp_line.startswith("ID"):
-                    self.audio_stream_id = int(tokenize_field(get_field_value(mp_line))[0])
+                    self.audio_stream_id = int(_tokenize_field(
+                        _get_field_value(mp_line))[0])
                 elif mp_line.startswith("Bit rate  "):
-                    audio_bit_rate_str = get_field_value(mp_line)
-                    self.audio_bitrate = int(bit_rate_convert(field_collapse_thousands(audio_bit_rate_str)))
+                    audio_bit_rate_str = _get_field_value(mp_line)
+                    self.audio_bitrate = int(_bit_rate_convert(
+                        _field_collapse_thousands(audio_bit_rate_str)))
                 elif mp_line.startswith("Sampling rate "):
-                    audio_sample_rate_str = get_field_value(mp_line)
-                    self.audio_samplerate = int(float_to_str_trunc(float(tokenize_field(audio_sample_rate_str)[0])))
+                    audio_sample_rate_str = _get_field_value(mp_line)
+                    self.audio_samplerate = int(_float_to_str_trunc(
+                        float(_tokenize_field(audio_sample_rate_str)[0])))
                 elif mp_line.startswith("Channel(s) "):
-                    audio_channel_str = get_field_value(mp_line)
-                    self.audio_channels = int(tokenize_field(audio_channel_str)[0])
+                    audio_channel_str = _get_field_value(mp_line)
+                    self.audio_channels = int(_tokenize_field(
+                        audio_channel_str)[0])
 
         if (self._vid_codec_id == "avc1" or
             self._vid_codec_id == "V_MPEG4/ISO/AVC" or
@@ -154,25 +167,108 @@ class VidParser:
             self.vid_codec = VIDEO_CODEC_MPEG12
         elif self._vid_format == "VC-1":
             self.vid_codec = VIDEO_CODEC_VC1
+                
+        try:
+            self._validate()
+        except errors.MMFError:
+            raise
+
+    def _validate(self):
+        if self.vid_fps is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no FPS found" %
+                self.input_file_name)
+        if self.vid_width is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no video width found" %
+                self.input_file_name)
+        if self.vid_height is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no video height found" %
+                self.input_file_name)
+        if self.vid_interlaced is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no scan info found" %
+                self.input_file_name)
+        if self.vid_codec is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no video codec found" %
+                self.input_file_name)
+        if self.audio_codec_id is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no audio codec found" %
+                self.input_file_name)
+        if self.audio_channels is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no audio channels found" %
+                self.input_file_name)
+        if self.audio_samplerate is None:
+            raise errors.MMFError(
+                "Failed to parse video file '%s' - no audio sample rate found" %
+                self.input_file_name)
+         
+    def __eq__(self, other):
+        """Equality operator for two parser objects"""
+        if self.vid_fps != other.vid_fps:
+            self.diff_str = ("Differing FPS: %s != %s" %
+                             (str(self.vid_fps), str(other.vid_fps)))
+            return False
+        if self.vid_width != other.vid_width:
+            self.diff_str = ("Differing width: %s != %s" %
+                             (str(self.vid_width), str(other.vid_width)))
+            return False
+        if self.vid_height != other.vid_height:
+            self.diff_str = ("Differing height: %s != %s" %
+                             (str(self.vid_height), str(other.vid_height)))
+            return False
+        if self.vid_interlaced != other.vid_interlaced:
+            self.diff_str = ("Differing interlace setting: %s != %s" %
+                             (str(self.vid_interlaced),
+                              str(other.vid_interlaced)))
+            return False
+        if self.vid_codec != other.vid_codec:
+            self.diff_str = ("Differing video codec: %s != %s" %
+                             (str(self.vid_codec), str(other.vid_codec)))
+            return False
+        if self.audio_codec_id != other.audio_codec_id:
+            self.diff_str = ("Differing audio codec: %s != %s" %
+                             (str(self.audio_codec_id),
+                              str(other.audio_codec_id)))
+            return False
+        if self.audio_channels != other.audio_channels:
+            self.diff_str = ("Differing audio channel count: %s != %s" %
+                             (str(self.audio_channels),
+                              str(other.audio_channels)))
+            return False
+        if self.audio_samplerate != other.audio_samplerate:
+            self.diff_str = ("Differing audio sample rate: %s != %s" %
+                             (str(self.audio_sample_rate),
+                              str(other.audio_sample_rate)))
+            return False
+        return True
+    
+    def __ne__(self, other):
+        """NOT equal operator for two parser objects"""
+        return not self.__eq__(other)
 
     def __repr__(self):
-        retStr = "\nInput file: "+ self.input_file_name + "\n\n"
-        retStr += "Video:\n"
-        retStr += "\tStream ID: " + str(self.vid_stream_id) + "\n"
-        retStr += "\tFormat profile: "+ self.vid_format_profile + "\n"
-        retStr += "\tCodec: "+ self.vid_codec + "\n"
-        retStr += "\tInterlaced: " + str(self.vid_interlaced) + "\n"
-        retStr += "\tWidth: " + str(self.vid_width) + "\n"
-        retStr += "\tHeight: " + str(self.vid_height) + "\n"
-        retStr += "\tBit rate: " + str(self.vid_bitrate) + "\n"
-        retStr += "\tFPS: " + str(self.vid_fps) + "\n"
+        retStr = "\nInput file: %s\n" % self.input_file_name
+        retStr += "\nVideo:\n"
+        retStr += "\tStream ID: %s\n" % str(self.vid_stream_id)
+        retStr += "\tFormat profile: %s\n" % self.vid_format_profile
+        retStr += "\tCodec: %s\n" % self.vid_codec
+        retStr += "\tInterlaced: %s\n" % str(self.vid_interlaced)
+        retStr += "\tWidth: %s\n" % str(self.vid_width)
+        retStr += "\tHeight: %s\n" % str(self.vid_height)
+        retStr += "\tBit rate: %s\n" % str(self.vid_bitrate)
+        retStr += "\tFPS: %s\n" % str(self.vid_fps)
         retStr += "Audio:\n"
-        retStr += "\tStream ID: " + str(self.audio_stream_id) + "\n"
-        retStr += "\tFormat: " + self.audio_format + "\n"
-        retStr += "\tCodec ID: " + self.audio_codec_id + "\n"
-        retStr += "\tChannel count: " + str(self.audio_channels) + "\n"
-        retStr += "\tBit rate: " + str(self.audio_bitrate) + "\n"
-        retStr += "\tSample rate: " + str(self.audio_samplerate) + "\n"
+        retStr += "\tStream ID: %s\n" % str(self.audio_stream_id)
+        retStr += "\tFormat: %s\n" % self.audio_format
+        retStr += "\tCodec ID: %s\n" % self.audio_codec_id
+        retStr += "\tChannel count: %s\n" % str(self.audio_channels)
+        retStr += "\tBit rate: %s\n" % str(self.audio_bitrate)
+        retStr += "\tSample rate: %s\n" % str(self.audio_samplerate)
         return retStr
 
 if __name__ == "__main__":

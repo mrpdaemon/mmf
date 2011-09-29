@@ -12,16 +12,21 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-import sys,subprocess,optparse,vidparse
+import optparse
+import subprocess
+import sys
+
+from mmf import vidparse
+from mmf import errors
 
 def main(argv = sys.argv):
     optparser = optparse.OptionParser()
-    optparser.add_option("-d","--debug",type="int", dest="debug_level",
+    optparser.add_option("-d", "--debug", type="int", dest="debug_level",
                          help="Enable debug logging")
-    optparser.add_option("-m","--mplayer-opts",action="store", type="string",
-                         dest="mplayer_opts",
+    optparser.add_option("-m", "--mplayer-opts", action="store",
+                         type="string", dest="mplayer_opts",
                          help="Pass additional mplayer options")
-    optparser.add_option("-2","--use-mplayer2", action = "store_true",
+    optparser.add_option("-2", "--use-mplayer2", action = "store_true",
                          dest="use_mplayer2",
                          help="Use mplayer2 instead of mplayer")
     (options, extra_args) = optparser.parse_args()
@@ -34,11 +39,15 @@ def main(argv = sys.argv):
     
     if len(extra_args) == 0:
         print "No filename specified, exiting."
-        sys.exit()
+        sys.exit(1)
     
     DECISION_LOG = options.debug_level
     
-    vid_info = vidparse.VidParser(extra_args[0])
+    try:
+        vid_info = vidparse.VidParser(extra_args[0])
+    except errors.MMFError as e:
+        print e.msg
+        sys.exit(1)
     
     # Decision steps
     vdpau_codec=""
@@ -46,36 +55,39 @@ def main(argv = sys.argv):
     sw_opts=""
     
     # Deinterlace for non-progressive videos
-    if vid_info.vid_interlaced == True:
-        vdpau_opts = vdpau_opts + ":deint=4"
-        sw_opts = sw_opts + "-vf pp=yadif:1"
-    else:
-        # Sharpen and de-noise progressive videos. Using these filters in
-        # conjunction with deinterlace puts too much load on the GPU
-        vdpau_opts = vdpau_opts + ":sharpen=0.4:denoise=0.4"
+    if vid_info.vid_interlaced is not None:
+        if vid_info.vid_interlaced:
+            vdpau_opts = vdpau_opts + ":deint=4"
+            sw_opts = sw_opts + "-vf pp=yadif:1"
+        else:
+            # Sharpen and de-noise progressive videos. Using these filters in
+            # conjunction with deinterlace puts too much load on the GPU
+            vdpau_opts = vdpau_opts + ":sharpen=0.4:denoise=0.4"
 
     # HQ scaling only if video isn't in native resolution
-    if vid_info.vid_width != 1920 and vid_info.vid_height != 1080:
-        vdpau_opts = vdpau_opts + ":hqscaling=1"          
+    if (vid_info.vid_width is not None) and (vid_info.vid_height is not None):
+        if vid_info.vid_width != 1920 and vid_info.vid_height != 1080:
+            vdpau_opts = vdpau_opts + ":hqscaling=1"          
     
     # Codec selection
-    if vid_info.vid_codec == vidparse.VIDEO_CODEC_H264:
+    if vid_info.vid_codec is not None:  
+        if vid_info.vid_codec == vidparse.VIDEO_CODEC_H264:
             vdpau_codec = "-vc ffh264vdpau"
-    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_WMV3:
+        elif vid_info.vid_codec == vidparse.VIDEO_CODEC_WMV3:
             vdpau_codec = "-vc ffwmv3vdpau"
-    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_DIVX:
+        elif vid_info.vid_codec == vidparse.VIDEO_CODEC_DIVX:
             vdpau_codec = "-vc ffodivxvdpau"
-    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_MPEG12:
+        elif vid_info.vid_codec == vidparse.VIDEO_CODEC_MPEG12:
             vdpau_codec = "-vc ffmpeg12vdpau"
-    elif vid_info.vid_codec == vidparse.VIDEO_CODEC_VC1:
+        elif vid_info.vid_codec == vidparse.VIDEO_CODEC_VC1:
             vdpau_codec = "-vc ffvc1vdpau"
-    
+        
     if DECISION_LOG >= 1:
         print "VDPAU options: " + vdpau_opts
         print "VDPAU codec: " + vdpau_codec
         print "S/W options: " + sw_opts
     
-    if options.use_mplayer2 == True:
+    if options.use_mplayer2:
         mplayer_str = "mplayer2"
     else:
         mplayer_str = "mplayer"
@@ -105,5 +117,3 @@ def main(argv = sys.argv):
     
         p = subprocess.Popen(mplayer_str + " " + mplayer_cmdline, shell=True)
         p.communicate()
-    
-    sys.exit()

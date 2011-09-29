@@ -12,70 +12,89 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-import sys,shlex,subprocess,optparse,vidparse,targetconfig,tempfile,os,multifile
+import optparse
+import os
+import shlex
+import subprocess
+import sys
+import tempfile
+
+from mmf import *
+
+def _calc_scaled_bitrate(target_config, video_max_bitrate,
+                         scaled_width, scaled_height):
+    return (int(video_max_bitrate * 
+            float(scaled_width * scaled_height) /
+            float(target_config.video_max_width * 
+                  target_config.video_max_height)))
 
 def main(argv = sys.argv):
     optparser = optparse.OptionParser()
-    optparser.add_option("-o","--output",action="store", type="string",
-                         dest="output_file",help="Output file name")
-    optparser.add_option("-t","--target",action="store", type="string",
-                         dest="target_string",help="Target device name")
-    optparser.add_option("-l","--length",type="int", dest="duration",
-                         help="Number of seconds to encode (defaults to whole file)")
-    optparser.add_option("-s","--offset",type="int", dest="start_offset",
-                         help="Offset in seconds from the beginning of the input file to skip")
-    optparser.add_option("-2","--double-pass", action = "store_true",
-                         dest="double_pass",
-                         help="Use double-pass encoding for better compression efficiency")
-    optparser.add_option("-p","--preset",action="store", type="string",
-                         dest="ffmpeg_preset",
-                         help="FFMpeg preset to use for encoding")
-    optparser.add_option("-n","--use-neroaac", action = "store_true",
-                         dest="use_neroaac",
-                         help="Use neroAacEnc instead of ffmpeg for audio encoding")
+    optparser.add_option(
+        "-o", "--output", action="store", type="string",
+        dest="output_file", help="Output file name")
+    optparser.add_option(
+        "-t", "--target", action="store", type="string",
+        dest="target_string", help="Target device name")
+    optparser.add_option(
+        "-l", "--length", type="int", dest="duration",
+        help="Number of seconds to encode (defaults to whole file)")
+    optparser.add_option(
+        "-s", "--offset", type="int", dest="start_offset",
+        help="Offset in seconds from the beginning of the input file to skip")
+    optparser.add_option(
+        "-2", "--double-pass", action = "store_true", dest="double_pass",
+        help="Use double-pass encoding for better compression efficiency")
+    optparser.add_option(
+        "-p", "--preset", action="store", type="string", dest="ffmpeg_preset",
+        help="FFMpeg preset to use for encoding")
+    optparser.add_option(
+        "-n", "--use-neroaac", action = "store_true", dest="use_neroaac",
+        help="Use neroAacEnc instead of ffmpeg for audio encoding")
     (options, extra_args) = optparser.parse_args()
     
-    if options.output_file == None:
+    if options.output_file is None:
         print "No output file specified, exiting."
-        sys.exit()
+        sys.exit(1)
     
-    if options.target_string == None:
+    if options.target_string is None:
         print "No target specified, exiting."
-        sys.exit()
+        sys.exit(1)
     
     if len(extra_args) == 0:
         print "No input file specified, exiting."
-        sys.exit()
+        sys.exit(1)
     elif len(extra_args) == 1:
         single_file = True
         input_file = extra_args[0]
         input_file_str = " -i " + input_file
     else:
         if options.duration or options.start_offset:
-            print "Multiple file mode is not compatible with --length or --offset."
-            sys.exit()
+            print "Multiple file mode is not compatible with --length or \
+--offset."
+            sys.exit(1)
         single_file = False
         try:
             input_files = multifile.MultiFileInput(extra_args)
-        except:
-            print sys.exc_info()[1]
-            sys.exit() 
+        except errors.MMFError as e:
+            print e.msg
+            sys.exit(1) 
         input_file_str = " -i -"
     
     try:
-        if single_file == True:
+        if single_file:
             vid_info = vidparse.VidParser(extra_args[0])
         else:
             vid_info = input_files.parser
-    except:
-        print sys.exc_info()[1]
-        sys.exit()
-    
+    except errors.MMFError as e:
+        print e.msg
+        sys.exit(1)
+
     try:
         target_config = targetconfig.TargetConfig(options.target_string)
-    except:
-        print sys.exc_info()[1]
-        sys.exit() 
+    except errors.MMFError as e:
+        print e.msg
+        sys.exit(1) 
     
     temp_dir = tempfile.mkdtemp()
     print "Working directory: " + temp_dir
@@ -93,10 +112,17 @@ def main(argv = sys.argv):
         offset_str = " -ss " + str(options.start_offset)
     
     # Audio parameter calculation
-    audio_bitrate = min(vid_info.audio_bitrate, target_config.audio_max_bitrate)
+    if vid_info.audio_bitrate is None:
+        print ("No audio bitrate information for '%s'" %
+               vid_info.input_file_name)
+        sys.exit(1)
+    else:
+        audio_bitrate = min(vid_info.audio_bitrate,
+                            target_config.audio_max_bitrate)
     if audio_bitrate < target_config.audio_max_bitrate:
-        # Round up bitrate to a standard step unless it is > 320 in which case just keep it
-        audio_bitrate_steps = [320,256,192,160,128,112,96,64,0]
+        # Round up bitrate to a standard step unless it is > 320 in which
+        # case just keep it
+        audio_bitrate_steps = [320, 256, 192, 160, 128, 112, 96, 64, 0]
         prev_rate = audio_bitrate
         for rate in audio_bitrate_steps:
             if audio_bitrate > rate:
@@ -115,16 +141,17 @@ def main(argv = sys.argv):
         print ffmpeg_cmdline
         ffmpeg_args = shlex.split(ffmpeg_cmdline)
         null_device = open(os.devnull, 'w')
-        if single_file == True:
+        if single_file:
             ffmpeg = subprocess.Popen(ffmpeg_args, stdout = subprocess.PIPE,
                                       stderr = null_device)
         else:
             ffmpeg = subprocess.Popen(ffmpeg_args, stdin = subprocess.PIPE, 
-                                      stdout = subprocess.PIPE, stderr = null_device)
+                                      stdout = subprocess.PIPE,
+                                      stderr = null_device)
         
         try:
             neroaac_dir = os.environ['NEROAAC_DIR']
-        except:
+        except KeyError:
             neroaac_dir = ""
         neroaac_path = os.path.join(neroaac_dir, "neroAacEnc")
         neroaac_cmdline = (neroaac_path + " -cbr " + str(audio_bitrate) +
@@ -133,17 +160,23 @@ def main(argv = sys.argv):
         neroaac_args = shlex.split(neroaac_cmdline)
         neroaac = subprocess.Popen(neroaac_args, stdin = ffmpeg.stdout)
     
-        if single_file == True:
-            while ffmpeg.returncode != None:
+        if single_file:
+            while ffmpeg.returncode is not None:
                 buf = ffmpeg.communicate()
                 neroaac.communicate(buf)
             neroaac.wait()
         else:
             input_files.set_output(ffmpeg.stdin)
-            input_files.write_all()
+            try:
+                input_files.write_all()
+            except IOError as e:
+                print "FFMpeg was killed or input files not \
+compatible with concatenation"
+                print e
+                sys.exit(1)
         
-            # Flush ffmpeg's stdout and kill it, couldn't find any other way of
-            # making neroaac drain ffmpeg's stdout without hanging
+            # Flush ffmpeg's stdout and kill it, couldn't find any other way
+            # of making neroaac drain ffmpeg's stdout without hanging
             ffmpeg.stdout.flush()
             ffmpeg.kill()
             neroaac.wait()
@@ -153,58 +186,67 @@ def main(argv = sys.argv):
         null_device.close()
         
     # Video parameter calculations
-    if target_config.codec_h264_same == True:
+    if target_config.codec_h264_same:
         # use same profile/level as input
-        if vid_info.vid_format_profile == "":
+        if vid_info.vid_format_profile is None:
             print vid_info
-            print "Same H.264 profile/level as input requested, but no info found in input file."
-            sys.exit()
+            print "Same H.264 profile/level as input requested, but no info\
+found in input file."
+            sys.exit(1)
         partition = vid_info.vid_format_profile.partition('@')
         h264_profile_str = partition[0].lower()
-        h264_level_str = partition[2].replace('.','').replace('L','')
-        
+        h264_level_str = partition[2].replace('.','').replace('L','')        
     else:
         # use target preset for profile/level
         h264_level_str = target_config.codec_h264_level.replace('.', '')
         h264_profile_str = target_config.codec_h264_profile.lower()
     
-    video_max_bitrate = min(target_config.video_max_bitrate, vid_info.vid_bitrate)
-    
-    def calc_scaled_bitrate(target_config, scaled_width, scaled_height):
-        return (int(video_max_bitrate * 
-                float(scaled_width * scaled_height) /
-                float(target_config.video_max_width * 
-                      target_config.video_max_height)))
+    if vid_info.vid_bitrate is None:
+        print ("No video bitrate information for '%s'" %
+               vid_info.input_file_name)
+        sys.exit(1)
+    else: 
+        video_max_bitrate = min(target_config.video_max_bitrate,
+                                vid_info.vid_bitrate)
+
+    if vid_info.vid_width is None or vid_info.vid_height is None:
+        print ("No video width/height information for '%s'" %
+               vid_info.input_file_name)
+        sys.exit(1)
     
     if vid_info.vid_width > target_config.video_max_width:
         # Scale down width and see if height is within maximum allowed
-        scale_factor = float(target_config.video_max_width) / vid_info.vid_width
+        scale_factor = (float(target_config.video_max_width) /
+                        vid_info.vid_width)
         scaled_height = int(float(vid_info.vid_height) * scale_factor)
         if scaled_height % 2 == 1: # make sure scaled height divisible by 2
             scaled_height += 1
         if scaled_height < target_config.video_max_height:
-            vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
-                            str(scaled_height))
-            bit_rate = calc_scaled_bitrate(target_config,
-                                           target_config.video_max_width,
-                                           scaled_height)
+            vid_size_str = (" -s " + str(target_config.video_max_width) +
+                            "x" + str(scaled_height))
+            bit_rate = _calc_scaled_bitrate(target_config,
+                                            video_max_bitrate,
+                                            target_config.video_max_width,
+                                            scaled_height)
         else:
             # Failed, have to break aspect ratio
-            vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
-                            str(target_config.video_max_height))
+            vid_size_str = (" -s " + str(target_config.video_max_width) +
+                            "x" + str(target_config.video_max_height))
             bit_rate = video_max_bitrate
     elif vid_info.vid_height > target_config.video_max_height:
-        # Scale down heigth and see if width is within maximum allowed
-        scale_factor = float(target_config.video_max_height) / vid_info.vid_height
+        # Scale down height and see if width is within maximum allowed
+        scale_factor = (float(target_config.video_max_height) /
+                        vid_info.vid_height)
         scaled_width = int(float(vid_info.vid_width) * scale_factor)
         if scaled_width % 2 == 1: # make sure scaled width divisible by 2
             scaled_width += 1
         if scaled_width < target_config.video_max_width:
             vid_size_str = (" -s " + str(scaled_width) + "x" +
                             str(target_config.video_max_height))
-            bit_rate = calc_scaled_bitrate(target_config,
-                                           scaled_width,
-                                           target_config.video_max_height)
+            bit_rate = _calc_scaled_bitrate(target_config,
+                                            video_max_bitrate,
+                                            scaled_width,
+                                            target_config.video_max_height)
         else:
             # Failed, have to break aspect ratio
             vid_size_str = (" -s " + str(target_config.video_max_width) + "x" +
@@ -224,7 +266,9 @@ def main(argv = sys.argv):
     # Interlace handling
     if vid_info.vid_interlaced:
         deint_str = " -vf yadif=1"
-        if vid_info.vid_fps == 23.976:
+        if vid_info.vid_fps is None:
+            fps_str = ""  
+        elif vid_info.vid_fps == 23.976:
             fps_str = " -r 24000/1001"
         elif vid_info.vid_fps == 29.970:
             fps_str = " -r 30000/1001"
@@ -236,31 +280,43 @@ def main(argv = sys.argv):
     
     if options.double_pass:
         # Video first pass
-        ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + input_file_str +
-                          vid_size_str + " -pass 1 -vcodec libx264" +
-                          " -threads 0 -level " + h264_level_str + preset_str +
-                          " -profile " + h264_profile_str + vid_bitrate_str +
-                          deint_str + fps_str + " -acodec copy -f rawvideo /dev/null")
+        ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str +
+                          input_file_str + vid_size_str +
+                          " -pass 1 -vcodec libx264" + " -threads 0 -level " +
+                          h264_level_str + preset_str + " -profile " +
+                          h264_profile_str + vid_bitrate_str + deint_str +
+                          fps_str + " -acodec copy -f rawvideo /dev/null")
         print ffmpeg_cmdline
         ffmpeg_args = shlex.split(ffmpeg_cmdline)
-        if single_file == True:
+        if single_file:
             ffmpeg = subprocess.Popen(ffmpeg_args)
         else:
             ffmpeg = subprocess.Popen(ffmpeg_args, stdin = subprocess.PIPE)
             input_files.set_output(ffmpeg.stdin)
-            input_files.write_all()
+            try:
+                input_files.write_all()
+            except IOError as e:
+                print "FFMpeg was killed or input files not \
+compatible with concatenation"
+                print e
+                sys.exit(1)
     
         ffmpeg.wait()
         
-        if single_file == False:
+        if not single_file:
             input_files.rewind()
         pass_str = " -pass 2"
     else:
         pass_str = ""
     
-    # Video second (or first) pass + muxer step (+ audio encode if not using neroAac)
+    # Video second (or first) pass + muxer step (+ audio encode if not using
+    # neroAac)
     if options.use_neroaac:
         # Stream mapping calculation
+        if (vid_info.audio_stream_id is None or
+            vid_info.vid_stream_id is None):
+            map_vid_str = ""
+            map_audio_str = ""
         if vid_info.audio_stream_id > vid_info.vid_stream_id:
             map_vid_str = " -map 0:0"
             map_audio_str = " -map 1:0"
@@ -280,20 +336,26 @@ def main(argv = sys.argv):
                            str(audio_bitrate))
     
     ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + map_vid_str +
-                      input_file_str + audio_input_str + vid_size_str + pass_str +
-                      " -vcodec libx264 -threads 0 -level " + h264_level_str +
-                      preset_str +" -profile " + h264_profile_str + vid_bitrate_str
-                      + deint_str + fps_str + audio_codec_str + " " +
-                      options.output_file)
+                      input_file_str + audio_input_str + vid_size_str +
+                      pass_str + " -vcodec libx264 -threads 0 -level " +
+                      h264_level_str + preset_str +" -profile " +
+                      h264_profile_str + vid_bitrate_str + deint_str +
+                      fps_str + audio_codec_str + " " + options.output_file)
     print ffmpeg_cmdline
     ffmpeg_args = shlex.split(ffmpeg_cmdline)
     
-    if single_file == True:
+    if single_file:
         ffmpeg = subprocess.Popen(ffmpeg_args)
     else:
         ffmpeg = subprocess.Popen(ffmpeg_args, stdin = subprocess.PIPE)
         input_files.set_output(ffmpeg.stdin)
-        input_files.write_all()
+        try:
+            input_files.write_all()
+        except IOError as e:
+            print "FFMpeg was killed or input files not \
+compatible with concatenation"
+            print e
+            sys.exit(1)
     
     ffmpeg.wait()
     

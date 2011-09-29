@@ -12,4 +12,12 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-__all__ = ["multifile", "targetconfig", "vidparse", "errors"]
+class Error(Exception):
+    """Base class for exceptions in MMF"""
+    pass
+
+class MMFError(Error):
+    """Generic error type with description"""
+    
+    def __init__(self, msg):
+        self.msg = msg
