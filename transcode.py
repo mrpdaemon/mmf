@@ -56,6 +56,8 @@ def main(argv = sys.argv):
     if options.output_file is None:
         print "No output file specified, exiting."
         sys.exit(1)
+    else:
+        output_path = os.path.abspath(options.output_file)
     
     if options.target_string is None:
         print "No target specified, exiting."
@@ -66,7 +68,7 @@ def main(argv = sys.argv):
         sys.exit(1)
     elif len(extra_args) == 1:
         single_file = True
-        input_file = extra_args[0]
+        input_file = os.path.abspath(extra_args[0])
         input_file_str = " -i " + input_file
     else:
         if options.duration or options.start_offset:
@@ -340,7 +342,7 @@ compatible with concatenation"
                       pass_str + " -vcodec libx264 -threads 0 -level " +
                       h264_level_str + preset_str +" -profile " +
                       h264_profile_str + vid_bitrate_str + deint_str +
-                      fps_str + audio_codec_str + " " + options.output_file)
+                      fps_str + audio_codec_str + " " + output_path)
     print ffmpeg_cmdline
     ffmpeg_args = shlex.split(ffmpeg_cmdline)
     

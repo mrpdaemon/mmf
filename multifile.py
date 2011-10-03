@@ -12,6 +12,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
+import os.path
+
 from mmf import vidparse
 from mmf import errors
 
@@ -29,7 +31,12 @@ class MultiFileInput:
             self._validate_list(file_list)
         except errors.MMFError:
             raise
-        self._file_list = file_list
+        
+        # Cache absolute paths of all files
+        self._file_list = []
+        for cur_file in file_list:
+            self._file_list.append(os.path.abspath(cur_file))
+
         self._output_fd = None 
         
     def _validate_list(self, file_list):
