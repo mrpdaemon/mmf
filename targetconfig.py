@@ -102,6 +102,7 @@ class TargetConfig:
         self.video_max_width = None
         self.video_max_height = None
         self.video_max_bitrate = None
+        self.video_interlaced = False
         self.codec_h264_profile = None
         self.codec_h264_same = False
         self.codec_h264_level = None
@@ -126,6 +127,10 @@ class TargetConfig:
                 self.video_max_height = _get_int_field(line)
             elif line.startswith("VIDEO_MAX_BITRATE"):
                 self.video_max_bitrate = _get_int_field(line)
+            elif line.startswith("VIDEO_SCAN"):
+                scan_str = _get_string_field(line)
+                if scan_str.lower() == "interlaced":
+                    self.video_interlaced = True
             elif line.startswith("CODEC_H264_PROFILE"):
                 self.codec_h264_profile = _get_string_field(line)
             elif line.startswith("CODEC_H264_LEVEL"):

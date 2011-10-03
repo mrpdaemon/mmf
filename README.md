@@ -22,5 +22,4 @@ TODO
 * Multiple audio stream handling on input files (interactive mode or cmdline for selection)
 * Fix stream mapping to not be hardcoded.
 * Batching job creation support.
-* Add support for interlaced output.
 * Implement different audio/video codec support for output.

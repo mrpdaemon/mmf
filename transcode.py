@@ -267,7 +267,11 @@ found in input file."
     
     # Interlace handling
     if vid_info.vid_interlaced:
-        deint_str = " -vf yadif=1"
+        if target_config.video_interlaced:
+            int_str = " -flags +ildct"
+        else:
+            int_str = " -vf yadif=1"
+
         if vid_info.vid_fps is None:
             fps_str = ""  
         elif vid_info.vid_fps == 23.976:
@@ -277,7 +281,10 @@ found in input file."
         else:
             fps_str = " -r " + str(vid_info.vid_fps)
     else:
-        deint_str = ""
+        if target_config.video_interlaced:
+            print "WARNING: Interlaced output for progressive input \
+not supported!"
+        int_str = ""
         fps_str = ""
     
     if options.double_pass:
@@ -286,7 +293,7 @@ found in input file."
                           input_file_str + vid_size_str +
                           " -pass 1 -vcodec libx264" + " -threads 0 -level " +
                           h264_level_str + preset_str + " -profile " +
-                          h264_profile_str + vid_bitrate_str + deint_str +
+                          h264_profile_str + vid_bitrate_str + int_str +
                           fps_str + " -acodec copy -f rawvideo /dev/null")
         print ffmpeg_cmdline
         ffmpeg_args = shlex.split(ffmpeg_cmdline)
@@ -341,7 +348,7 @@ compatible with concatenation"
                       input_file_str + audio_input_str + vid_size_str +
                       pass_str + " -vcodec libx264 -threads 0 -level " +
                       h264_level_str + preset_str +" -profile " +
-                      h264_profile_str + vid_bitrate_str + deint_str +
+                      h264_profile_str + vid_bitrate_str + int_str +
                       fps_str + audio_codec_str + " " + output_path)
     print ffmpeg_cmdline
     ffmpeg_args = shlex.split(ffmpeg_cmdline)
