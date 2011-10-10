@@ -23,6 +23,7 @@ VIDEO_CODEC_WMV3 = "WMV3"
 VIDEO_CODEC_DIVX = "DIVX"
 VIDEO_CODEC_MPEG12 = "MPEG 1/2"
 VIDEO_CODEC_VC1 = "VC-1"
+VIDEO_CODEC_XVID = "XVID"
 
 def _get_field_value(line_str):
     splitter = re.compile(r'[:]+')
@@ -167,6 +168,8 @@ class VidParser:
             self.vid_codec = VIDEO_CODEC_MPEG12
         elif self._vid_format == "VC-1":
             self.vid_codec = VIDEO_CODEC_VC1
+        elif self._vid_codec_id == "XVID":
+            self.vid_codec = VIDEO_CODEC_XVID
                 
         try:
             self._validate()
