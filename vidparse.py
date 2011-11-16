@@ -158,7 +158,8 @@ class VidParser:
 
         if (self._vid_codec_id == "avc1" or
             self._vid_codec_id == "V_MPEG4/ISO/AVC" or
-            self._vid_format == "AVC"):
+            self._vid_format == "AVC" or
+            self._vid_format == "MPEG-4 Visual"):
             self.vid_codec = VIDEO_CODEC_H264
         elif self._vid_codec_id == "WMV3":
             self.vid_codec = VIDEO_CODEC_WMV3
