@@ -258,7 +258,7 @@ found in input file."
         # Video is smaller than target's max width/height, use max bitrate
         vid_size_str = ""
         bit_rate = video_max_bitrate
-    vid_bitrate_str = " -b " + str(bit_rate * 1000)
+    vid_bitrate_str = " -b:v " + str(bit_rate * 1000)
     
     if options.ffmpeg_preset:
         preset_str = " -preset " + options.ffmpeg_preset
@@ -292,7 +292,7 @@ not supported!"
         ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str +
                           input_file_str + vid_size_str +
                           " -pass 1 -vcodec libx264" + " -threads 0 -level " +
-                          h264_level_str + preset_str + " -profile " +
+                          h264_level_str + preset_str + " -vprofile " +
                           h264_profile_str + vid_bitrate_str + int_str +
                           fps_str + " -acodec copy -f rawvideo /dev/null")
         print ffmpeg_cmdline
@@ -347,7 +347,7 @@ compatible with concatenation"
     ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + map_vid_str +
                       input_file_str + audio_input_str + vid_size_str +
                       pass_str + " -vcodec libx264 -threads 0 -level " +
-                      h264_level_str + preset_str +" -profile " +
+                      h264_level_str + preset_str +" -vprofile " +
                       h264_profile_str + vid_bitrate_str + int_str +
                       fps_str + audio_codec_str + " \"" + output_path + "\"")
     print ffmpeg_cmdline
