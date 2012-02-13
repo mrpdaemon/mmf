@@ -128,7 +128,8 @@ class VidParser:
                     vid_height_str = _get_field_value(mp_line)
                     self.vid_height = int(_field_collapse_thousands(
                         vid_height_str)[0])
-                elif mp_line.startswith("Bit rate  "):
+                elif (mp_line.startswith("Bit rate  ") or
+                      mp_line.startswith("Nominal bit rate")):
                     vid_bit_rate_str = _get_field_value(mp_line)
                     self.vid_bitrate = int(_bit_rate_convert(
                         _field_collapse_thousands(vid_bit_rate_str)))
