@@ -324,28 +324,24 @@ compatible with concatenation"
         # Stream mapping calculation
         if (vid_info.audio_stream_id is None or
             vid_info.vid_stream_id is None):
-            map_vid_str = ""
-            map_audio_str = ""
+            stream_map_str = ""
         if vid_info.audio_stream_id > vid_info.vid_stream_id:
-            map_vid_str = " -map 0:0"
-            map_audio_str = " -map 1:0"
+            stream_map_str = " -map 0:0 -map 1:0"
         else:
-            map_vid_str = " -map 0.1:0.1"
-            map_audio_str = " -map 1.0:1"
+            stream_map_str = " -map 0:1 -map 1:0"
     
-        audio_input_str = map_audio_str + " -i output-audio.aac"
+        audio_input_str = " -i output-audio.aac"
         audio_codec_str = " -acodec copy"
     else:
-        map_vid_str = ""
-        map_audio_str = ""
+        stream_map_str = ""
         audio_input_str = ""
         audio_codec_str = (" -acodec libvo_aacenc -ac " +
                            str(target_config.audio_channel_count) + " -ar " +
                            str(target_config.audio_sample_rate) + " -ab " +
                            str(audio_bitrate))
     
-    ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + map_vid_str +
-                      input_file_str + audio_input_str + vid_size_str +
+    ffmpeg_cmdline = ("ffmpeg -y" + offset_str + length_str + input_file_str +
+                      audio_input_str + stream_map_str + vid_size_str +
                       pass_str + " -vcodec libx264 -threads 0 -level " +
                       h264_level_str + preset_str +" -vprofile " +
                       h264_profile_str + vid_bitrate_str + int_str +
