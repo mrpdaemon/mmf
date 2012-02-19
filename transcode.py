@@ -372,6 +372,7 @@ compatible with concatenation"
     if options.use_neroaac:
         os.remove(os.path.join(temp_dir, "output-audio.aac"))
     if options.double_pass:
+        os.remove(os.path.join(temp_dir, "ffmpeg2pass-0.log"))
         os.remove(os.path.join(temp_dir, "x264_2pass.log.mbtree"))
         os.remove(os.path.join(temp_dir, "x264_2pass.log"))
     os.rmdir(temp_dir)
