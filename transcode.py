@@ -115,8 +115,8 @@ def main(argv = sys.argv):
     
     # Audio parameter calculation
     if vid_info.audio_bitrate is None:
-        print ("WARNING: No audio bitrate information for '%s' using %dKbps" %
-               vid_info.input_file_name, target_config.audio_max_bitrate)
+        print (("WARNING: No audio bitrate information for %s using %d Kbps") % 
+               (vid_info.input_file_name, target_config.audio_max_bitrate))
         audio_bitrate = target_config.audio_max_bitrate
     else:
         audio_bitrate = min(vid_info.audio_bitrate,
