@@ -51,6 +51,9 @@ def main(argv = sys.argv):
     optparser.add_option(
         "-n", "--use-neroaac", action = "store_true", dest="use_neroaac",
         help="Use neroAacEnc instead of ffmpeg for audio encoding")
+    optparser.add_option(
+        "-v", "--video-bitrate", action = "store", type="string", dest="video_bitrate",
+        help="Override video bitrate information from input file")
     (options, extra_args) = optparser.parse_args()
     
     if options.output_file is None:
@@ -203,13 +206,16 @@ found in input file."
         h264_level_str = target_config.codec_h264_level.replace('.', '')
         h264_profile_str = target_config.codec_h264_profile.lower()
     
-    if vid_info.vid_bitrate is None:
-        print ("No video bitrate information for '%s'" %
-               vid_info.input_file_name)
-        sys.exit(1)
-    else: 
+    if options.video_bitrate is not None:
+        video_max_bitrate = min(target_config.video_max_bitrate,
+                                int(options.video_bitrate))
+    elif vid_info.vid_bitrate is not None:
         video_max_bitrate = min(target_config.video_max_bitrate,
                                 vid_info.vid_bitrate)
+    else: 
+        print ("No video bitrate information for '%s' use -v [bitrate]" %
+               vid_info.input_file_name)
+        sys.exit(1)
 
     if vid_info.vid_width is None or vid_info.vid_height is None:
         print ("No video width/height information for '%s'" %
