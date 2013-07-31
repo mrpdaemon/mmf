@@ -152,7 +152,7 @@ class VidParser:
                     audio_sample_rate_str = _get_field_value(mp_line)
                     self.audio_samplerate = int(_float_to_str_trunc(
                         float(_tokenize_field(audio_sample_rate_str)[0])))
-                elif mp_line.startswith("Channel(s) "):
+                elif mp_line.startswith("Channel count "):
                     audio_channel_str = _get_field_value(mp_line)
                     self.audio_channels = int(_tokenize_field(
                         audio_channel_str)[0])
